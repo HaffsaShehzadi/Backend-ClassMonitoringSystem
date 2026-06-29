@@ -41,39 +41,52 @@ class AuthController {
 
                 }
 
-                const hashedPassword =
-                await bcrypt.hash(password, 10);
+                try {
 
-                userModel.createUser(
+                    const hashedPassword =
+                    await bcrypt.hash(password, 10);
 
-                    {
+                    userModel.createUser(
 
-                        full_name,
-                        email,
-                        password: hashedPassword,
-                        role,
-                        department
+                        {
 
-                    },
+                            full_name,
+                            email,
+                            password: hashedPassword,
+                            role,
+                            department
 
-                    (err, result) => {
+                        },
 
-                        if (err) {
+                        (err, result) => {
 
-                            return res.status(500).json(err);
+                            if (err) {
+
+                                return res.status(500).json(err);
+
+                            }
+
+                            res.status(201).json({
+
+                                message:
+                                "User Registered Successfully"
+
+                            });
 
                         }
 
-                        res.status(201).json({
+                    );
 
-                            message:
-                            "User Registered Successfully"
+                } catch (error) {
 
-                        });
+                    return res.status(500).json({
 
-                    }
+                        message:
+                        "Password Hashing Error"
 
-                );
+                    });
+
+                }
 
             }
 
@@ -170,6 +183,18 @@ class AuthController {
             }
 
         );
+
+    }
+
+    profile(req, res) {
+
+        res.status(200).json({
+
+            message: "Profile Loaded",
+
+            user: req.user
+
+        });
 
     }
 
