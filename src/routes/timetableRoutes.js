@@ -19,4 +19,16 @@ router.get(
     timetableController.getAllTimetables
 );
 
+router.put(
+    "/update/:id",
+    verifyToken,
+    timetableController.updateTimetable
+);
+
+router.delete(
+    "/delete/:id",
+    verifyToken,
+    timetableController.deleteTimetable
+);
+
 module.exports = router;

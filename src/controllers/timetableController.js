@@ -43,6 +43,45 @@ exports.createTimetable = (req, res) => {
     );
 };
 
+exports.updateTimetable = (req, res) => {
+
+    const id = req.params.id;
+
+    timetableModel.updateTimetable(
+        id,
+        req.body,
+        (err, result) => {
+
+            if (err) {
+                return res.status(500).json(err);
+            }
+
+            res.json({
+                message: "Timetable Updated Successfully"
+            });
+        }
+    );
+};
+
+exports.deleteTimetable = (req, res) => {
+
+    const id = req.params.id;
+
+    timetableModel.deleteTimetable(
+        id,
+        (err, result) => {
+
+            if (err) {
+                return res.status(500).json(err);
+            }
+
+            res.json({
+                message: "Timetable Deleted Successfully"
+            });
+        }
+    );
+};
+
 exports.getAllTimetables = (req, res) => {
 
     timetableModel.getAllTimetables(
