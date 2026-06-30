@@ -6,6 +6,7 @@ require("dotenv").config();
 require("./Database");
 const authRoutes = require("./src/routes/authRoutes");
 const timetableRoutes = require("./src/routes/timetableRoutes");
+const attendanceRoutes = require("./src/routes/attendanceRoutes");
 
 
 const app = express();
@@ -24,6 +25,10 @@ app.use(
 app.use(
     "/api/timetable",
     timetableRoutes
+);
+app.use(
+    "/api/attendance",
+    attendanceRoutes
 );
 
 app.get("/", (req, res) => {
