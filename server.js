@@ -7,6 +7,7 @@ require("./Database");
 const authRoutes = require("./src/routes/authRoutes");
 const timetableRoutes = require("./src/routes/timetableRoutes");
 const attendanceRoutes = require("./src/routes/attendanceRoutes");
+const monitoringdutyRoutes = require("./src/routes/monitoringdutyRoutes");
 
 
 const app = express();
@@ -36,6 +37,11 @@ app.get("/", (req, res) => {
     res.send("API is running...");
 
 });
+
+app.use(
+    "/api/monitoring-duty",
+    monitoringdutyRoutes
+);
 
 const PORT = process.env.PORT || 5000;
 
