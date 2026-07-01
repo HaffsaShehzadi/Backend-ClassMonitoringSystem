@@ -8,7 +8,7 @@ const verifyToken =
 require("../middleware/authMiddleware");
 
 router.post(
-    "/create",
+    "/mark",
     verifyToken,
     attendanceController.createAttendance
 );

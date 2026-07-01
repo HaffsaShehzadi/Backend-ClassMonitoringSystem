@@ -44,7 +44,31 @@ const getAllAttendance = (callback) => {
     db.query(sql, callback);
 };
 
+const getTimetableById = (timetable_id, callback) => {
+
+    const sql = `
+        SELECT *
+        FROM timetable
+        WHERE timetable_id = ?
+    `;
+
+    db.query(sql, [timetable_id], callback);
+};
+
+const getRoomById = (room_id, callback) => {
+
+    const sql = `
+        SELECT *
+        FROM rooms
+        WHERE room_id = ?
+    `;
+
+    db.query(sql, [room_id], callback);
+};
+
 module.exports = {
     createAttendance,
-    getAllAttendance
+    getAllAttendance,
+    getTimetableById,
+    getRoomById
 };
