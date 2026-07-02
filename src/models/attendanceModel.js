@@ -1,74 +1,78 @@
 const db = require("../../Database");
 
-const createAttendance = (attendanceData, callback) => {
+class AttendanceModel {
 
-    const sql = `
-        INSERT INTO attendance
-        (
-            timetable_id,
-            teacher_id,
-            monitor_id,
-            status,
-            latitude,
-            longitude,
-            sync_status,
-            marked_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    createAttendance(attendanceData, callback) {
 
-    db.query(
-        sql,
-        [
-            attendanceData.timetable_id,
-            attendanceData.teacher_id,
-            attendanceData.monitor_id,
-            attendanceData.status,
-            attendanceData.latitude,
-            attendanceData.longitude,
-            attendanceData.sync_status,
-            attendanceData.marked_at
-        ],
-        callback
-    );
-};
+        const sql = `
+            INSERT INTO attendance
+            (
+                timetable_id,
+                teacher_id,
+                monitor_id,
+                status,
+                sync_status,
+                marked_at,
+                teacher_latitude,
+                teacher_longitude,
+                monitor_latitude,
+                monitor_longitude,
+                validation_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
-const getAllAttendance = (callback) => {
+        db.query(
+            sql,
+            [
+                attendanceData.timetable_id,
+                attendanceData.teacher_id,
+                attendanceData.monitor_id,
+                attendanceData.status,
+                attendanceData.sync_status,
+                attendanceData.marked_at,
+                attendanceData.teacher_latitude,
+                attendanceData.teacher_longitude,
+                attendanceData.monitor_latitude,
+                attendanceData.monitor_longitude,
+                attendanceData.validation_status
+            ],
+            callback
+        );
+    }
 
-    const sql = `
-        SELECT *
-        FROM attendance
-        ORDER BY attendance_id DESC
-    `;
+    getAllAttendance(callback) {
 
-    db.query(sql, callback);
-};
+        const sql = `
+            SELECT *
+            FROM attendance
+            ORDER BY attendance_id DESC
+        `;
 
-const getTimetableById = (timetable_id, callback) => {
+        db.query(sql, callback);
+    }
 
-    const sql = `
-        SELECT *
-        FROM timetable
-        WHERE timetable_id = ?
-    `;
+    getTimetableById(timetable_id, callback) {
 
-    db.query(sql, [timetable_id], callback);
-};
+        const sql = `
+            SELECT *
+            FROM timetable
+            WHERE timetable_id = ?
+        `;
 
-const getRoomById = (room_id, callback) => {
+        db.query(sql, [timetable_id], callback);
+    }
 
-    const sql = `
-        SELECT *
-        FROM rooms
-        WHERE room_id = ?
-    `;
+    getRoomById(room_id, callback) {
 
-    db.query(sql, [room_id], callback);
-};
+        const sql = `
+            SELECT *
+            FROM rooms
+            WHERE room_id = ?
+        `;
 
-module.exports = {
-    createAttendance,
-    getAllAttendance,
-    getTimetableById,
-    getRoomById
-};
+        db.query(sql, [room_id], callback);
+    }
+}
+
+module.exports = new AttendanceModel();

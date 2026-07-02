@@ -73,6 +73,7 @@ class LocationModel {
         callback
     ) {
 
+        console.log("Searching Monitor:", monitor_id);
         const sql = `
             SELECT *
             FROM monitor_locations
