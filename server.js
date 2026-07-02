@@ -9,11 +9,13 @@ const attendanceRoutes = require("./src/routes/attendanceRoutes");
 const monitoringdutyRoutes = require("./src/routes/monitoringdutyRoutes");
 const locationRoutes = require("./src/routes/locationRoutes");
 const dashboardRoutes = require("./src/routes/dashboardRoutes");
+const reportRoutes = require("./src/routes/reportRoutes");
 
 const app = express();
 
 app.use(cors());
 app.use(locationRoutes);
+app.use(reportRoutes);
 app.use(dashboardRoutes);
 
 app.use(express.json());
@@ -33,6 +35,8 @@ app.use(
     "/api/attendance",
     attendanceRoutes
 );
+
+app.use("/api/report", reportRoutes);
 
 app.get("/", (req, res) => {
 
