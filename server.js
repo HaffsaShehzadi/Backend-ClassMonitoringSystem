@@ -10,13 +10,12 @@ const monitoringdutyRoutes = require("./src/routes/monitoringdutyRoutes");
 const locationRoutes = require("./src/routes/locationRoutes");
 const dashboardRoutes = require("./src/routes/dashboardRoutes");
 const reportRoutes = require("./src/routes/reportRoutes");
+const teacherRoutes = require("./src/routes/teacherRoutes");
 
 const app = express();
 
 app.use(cors());
-app.use(locationRoutes);
-app.use(reportRoutes);
-app.use(dashboardRoutes);
+app.use("/api/teacher", teacherRoutes);
 
 app.use(express.json());
 
