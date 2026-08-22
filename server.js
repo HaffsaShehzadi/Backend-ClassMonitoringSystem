@@ -13,40 +13,21 @@ const reportRoutes = require("./src/routes/reportRoutes");
 const teacherRoutes = require("./src/routes/teacherRoutes");
 
 const app = express();
-
 app.use(cors());
-app.use("/api/teacher", teacherRoutes);
-
 app.use(express.json());
 
-app.use(
-
-    "/api/auth",
-
-    authRoutes
-
-);
-app.use(
-    "/api/timetable",
-    timetableRoutes
-);
-app.use(
-    "/api/attendance",
-    attendanceRoutes
-);
-
+app.use("/api/auth", authRoutes);
+app.use("/api/teacher", teacherRoutes);
+app.use("/api/timetable", timetableRoutes);
+app.use("/api/attendance", attendanceRoutes);
 app.use("/api/report", reportRoutes);
-
-app.get("/", (req, res) => {
-
-    res.send("API is running...");
-
-});
-
 app.use("/api/monitoring-duty", monitoringdutyRoutes);
-
 app.use("/api/location", locationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+
+app.get("/", (req, res) => {
+    res.send("API is running...");
+});
 
 const PORT = process.env.PORT || 5000;
 
