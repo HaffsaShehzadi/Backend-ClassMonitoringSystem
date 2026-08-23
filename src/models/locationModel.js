@@ -1,92 +1,40 @@
 const db = require("../../Database");
 
+// ============================================
+// Location Model - live_locations table handle karta hai
+// Teacher + Monitoring OFFICIAL dono ka latest GPS
+// isi EK table mein save hota hai
+// ============================================
 class LocationModel {
 
-    updateTeacherLocation(data, callback) {
-
+    // User ka latest location update karna
+    // INSERT ... ON DUPLICATE KEY UPDATE ka matlab:
+    //   - User pehle se table mein hai → sirf GPS update karo
+    //   - Naya user hai → naya row insert karo
+    // Is tarah har user ki sirf EK latest row rehti hai
+    async updateLocation(userId, latitude, longitude) {
         const sql = `
-            INSERT INTO teacher_locations
-            (
-                teacher_id,
-                latitude,
-                longitude
-            )
+            INSERT INTO live_locations (user_id, latitude, longitude)
             VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                latitude = VALUES(latitude),
+                longitude = VALUES(longitude)
         `;
-
-        db.query(
-            sql,
-            [
-                data.teacher_id,
-                data.latitude,
-                data.longitude
-            ],
-            callback
-        );
+        // Note: updated_at khud-ba-khud update hota hai
+        // (table mein ON UPDATE CURRENT_TIMESTAMP laga hai)
+        await db.promise().query(sql, [userId, latitude, longitude]);
     }
 
-    updateMonitorLocation(data, callback) {
-
+    // Kisi user ka latest location lana
+    // Har user ki ek hi row hai, is liye ORDER BY ki zarurat nahi
+    async getLatestLocation(userId) {
         const sql = `
-            INSERT INTO monitor_locations
-            (
-                monitor_id,
-                latitude,
-                longitude
-            )
-            VALUES (?, ?, ?)
+            SELECT latitude, longitude, updated_at
+            FROM live_locations
+            WHERE user_id = ?
         `;
-
-        db.query(
-            sql,
-            [
-                data.monitor_id,
-                data.latitude,
-                data.longitude
-            ],
-            callback
-        );
-    }
-
-    getLatestTeacherLocation(
-        teacher_id,
-        callback
-    ) {
-
-        const sql = `
-            SELECT *
-            FROM teacher_locations
-            WHERE teacher_id = ?
-            ORDER BY updated_at DESC
-            LIMIT 1
-        `;
-
-        db.query(
-            sql,
-            [teacher_id],
-            callback
-        );
-    }
-
-    getLatestMonitorLocation(
-        monitor_id,
-        callback
-    ) {
-
-        console.log("Searching Monitor:", monitor_id);
-        const sql = `
-            SELECT *
-            FROM monitor_locations
-            WHERE monitor_id = ?
-            ORDER BY updated_at DESC
-            LIMIT 1
-        `;
-
-        db.query(
-            sql,
-            [monitor_id],
-            callback
-        );
+        const [rows] = await db.promise().query(sql, [userId]);
+        return rows[0];   // user ki latest location (ya undefined)
     }
 }
 

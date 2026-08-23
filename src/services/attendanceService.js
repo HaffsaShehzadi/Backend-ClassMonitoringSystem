@@ -1,39 +1,83 @@
+const locationModel = require("../models/locationModel");
+const locationService = require("./locationService");
+
+// ============================================
+// Attendance Service - VALIDATION KA MAIN LOGIC ⭐
+// Ye service check karti hai:
+//   1. TIME: lecture ke time mein mark ho rahi hai?
+//   2. LOCATION: user room ke radius mein hai?
+//   3. FRESHNESS: location 5 minute se purani to nahi?
+// ============================================
 class AttendanceService {
 
-    calculateDistance(
-        lat1,
-        lon1,
-        lat2,
-        lon2
-    ) {
+    // ---------- TIME CHECK ----------
+    // Abhi ka server time period ke time ke andar hai ya nahi
+    // period example: "08:30:00" se "09:15:00"
+    checkTime(start_time, end_time) {
+        const now = new Date();
 
-        const R = 6371000;
+        // Server ka current time "HH:MM:SS" format mein
+        const current = now.toTimeString().split(" ")[0];
 
-        const dLat =
-        (lat2 - lat1) * Math.PI / 180;
+        // String compare kaam karta hai kyunki format same hai (HH:MM:SS)
+        const within = current >= start_time && current <= end_time;
 
-        const dLon =
-        (lon2 - lon1) * Math.PI / 180;
+        return {
+            time_verified: within,
+            current_time: current
+        };
+    }
 
-        const a =
-        Math.sin(dLat / 2) *
-        Math.sin(dLat / 2) +
+    // ---------- LOCATION + FRESHNESS CHECK ----------
+    // User room ke radius mein hai ya nahi
+    async checkLocation(userId, roomLat, roomLng, radius) {
+        // User ka latest GPS lao (live_locations se)
+        const loc = await locationModel.getLatestLocation(userId);
 
-        Math.cos(lat1 * Math.PI / 180) *
-        Math.cos(lat2 * Math.PI / 180) *
+        // Location aayi hi nahi (user ne app kholi hi nahi)
+        if (!loc) {
+            return {
+                ok: false,
+                reason: "Location not received - app open nahi hai",
+                lat: null,
+                lng: null
+            };
+        }
 
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+        // FRESHNESS CHECK ⭐ (examiner ko ye zaroor batana)
+        // 5 minute se purani location accept NAHI hoti
+        const updated = new Date(loc.updated_at);
+        const now = new Date();
+        const minutesDiff = (now - updated) / (1000 * 60);
 
-        const c =
-        2 * Math.atan2(
-            Math.sqrt(a),
-            Math.sqrt(1 - a)
+        if (minutesDiff > 5) {
+            return {
+                ok: false,
+                reason: "Location purani hai (5 min se zyada)",
+                lat: loc.latitude,
+                lng: loc.longitude
+            };
+        }
+
+        // HAVERSINE: user GPS vs room GPS ka distance (meters)
+        const distance = locationService.calculateDistance(
+            loc.latitude,
+            loc.longitude,
+            roomLat,
+            roomLng
         );
 
-        return R * c;
+        // Radius ke andar hai ya nahi
+        const ok = locationService.isWithinRadius(distance, radius);
+
+        return {
+            ok,
+            distance: Math.round(distance),   // meters mein (rounded)
+            lat: loc.latitude,
+            lng: loc.longitude,
+            reason: ok ? "Within radius" : "Room ke radius se bahar hai"
+        };
     }
 }
 
-module.exports =
-new AttendanceService();
+module.exports = new AttendanceService();

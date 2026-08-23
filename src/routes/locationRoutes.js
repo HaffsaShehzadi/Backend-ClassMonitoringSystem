@@ -1,23 +1,28 @@
 const express = require("express");
-
 const router = express.Router();
 
-const verifyToken =
-require("../middleware/authMiddleware");
+const verifyToken = require("../middleware/authMiddleware");
+const locationController = require("../controllers/locationController");
 
-const locationController =
-require("../controllers/locationController");
+// ============================================
+// Location Routes
+// ============================================
 
+// POST /api/location/update
+// Teacher + Monitoring DONO ye hi route use karte hain
+// verifyToken: login zaroori hai (token se user_id milta hai)
 router.post(
-    "/teacher",
+    "/update",
     verifyToken,
-    locationController.updateTeacherLocation
+    locationController.updateLocation
 );
 
-router.post(
-    "/monitor",
+// GET /api/location/latest/:userId
+// Kisi user ka latest GPS dekhna (testing ke liye)
+router.get(
+    "/latest/:userId",
     verifyToken,
-    locationController.updateMonitorLocation
+    locationController.getLatestLocation
 );
 
 module.exports = router;

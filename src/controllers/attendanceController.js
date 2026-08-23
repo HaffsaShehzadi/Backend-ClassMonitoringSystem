@@ -1,209 +1,115 @@
 const attendanceModel = require("../models/attendanceModel");
-const locationModel = require("../models/locationModel");
-const attendanceService = require("../services/AttendanceService");
+const attendanceService = require("../services/attendanceService");
+const timetableModel = require("../models/timetableModel");
 
-exports.createAttendance = (req, res) => {
+// ============================================
+// Attendance Controller - marking + history
+// ============================================
+class AttendanceController {
 
-    const {
-        timetable_id,
-        teacher_id,
-        status
-    } = req.body;
+    // POST /api/attendance/mark
+    // MO attendance mark karta hai - yahan SARI validation hoti hai
+    async markAttendance(req, res) {
+        try {
+            const { timetable_id, status, substitute_teacher_id } = req.body;
+            const moId = req.user.user_id;   // token se MO ki id
 
-    const monitor_id = req.user.user_id;
-    console.log("=================================");
-    console.log("JWT User:", req.user);
-    console.log("Monitor ID:", monitor_id);
-
-    attendanceModel.getTimetableById(
-        timetable_id,
-        (err, timetableRows) => {
-
-            if (err) {
-                return res.status(500)
-                .json(err);
+            if (!timetable_id || !status) {
+                return res.status(400).json({ message: "timetable_id and status required" });
             }
 
-            if (
-                timetableRows.length === 0
-            ) {
-                return res.status(404)
-                .json({
-                    message:
-                    "Timetable Not Found"
+            // 1️⃣ Timetable ki poori maloomat (room GPS + period time + teacher_id)
+            const tt = await timetableModel.getById(timetable_id);
+            if (!tt) {
+                return res.status(404).json({ message: "Timetable Not Found" });
+            }
+
+            // 2️⃣ TIME CHECK - lecture ke time mein hi mark ho sakti hai
+            const timeCheck = attendanceService.checkTime(tt.start_time, tt.end_time);
+            if (!timeCheck.time_verified) {
+                return res.status(400).json({
+                    message: "Not within lecture time",
+                    current_time: timeCheck.current_time,
+                    allowed_time: tt.start_time + " - " + tt.end_time
                 });
             }
 
-            const timetable =
-            timetableRows[0];
-
-            attendanceModel.getRoomById(
-                timetable.room_id,
-                (err, roomRows) => {
-
-                    if (err) {
-                        return res.status(500)
-                        .json(err);
-                    }
-
-                    const room =
-                    roomRows[0];
-
-                    locationModel.getLatestTeacherLocation(
-                        teacher_id,
-                        (err, teacherRows) => {
-
-                            if (err) {
-                                return res.status(500)
-                                .json(err);
-                            }
-
-                            if (
-                                teacherRows.length === 0
-                            ) {
-                                return res.status(404)
-                                .json({
-                                    message:
-                                    "Teacher Location Not Found"
-                                });
-                            }
-
-                            const teacherLocation =
-                            teacherRows[0];
-
-                            locationModel.getLatestMonitorLocation(
-                                monitor_id,
-                                (
-                                    err,
-                                    monitorRows
-                                ) => {
-
-                                    console.log("Rows Returned:", monitorRows);
-                                    if (err) {
-                                        return res.status(500)
-                                        .json(err);
-                                    }
-
-                                    if (
-                                        monitorRows.length === 0
-                                    ) {
-                                        return res.status(404)
-                                        .json({
-                                            message:
-                                            "Monitor Location Not Found"
-                                        });
-                                    }
-
-                                    const monitorLocation =
-                                    monitorRows[0];
-
-                                    const teacherDistance =
-                                    attendanceService.calculateDistance(
-                                        room.latitude,
-                                        room.longitude,
-                                        teacherLocation.latitude,
-                                        teacherLocation.longitude
-                                    );
-
-                                    const monitorDistance =
-                                    attendanceService.calculateDistance(
-                                        room.latitude,
-                                        room.longitude,
-                                        monitorLocation.latitude,
-                                        monitorLocation.longitude
-                                    );
-
-                                    let validationStatus =
-                                    "Invalid";
-
-                                    if (
-                                        teacherDistance <= room.radius &&
-                                        monitorDistance <= room.radius
-                                    ) {
-                                        validationStatus =
-                                        "Valid";
-                                    }
-
-                                    attendanceModel.createAttendance(
-                                        {
-                                            timetable_id,
-                                            teacher_id,
-                                            monitor_id,
-
-                                            status,
-
-                                            sync_status:
-                                            "Synced",
-
-                                            marked_at:
-                                            new Date(),
-
-                                            teacher_latitude:
-                                            teacherLocation.latitude,
-
-                                            teacher_longitude:
-                                            teacherLocation.longitude,
-
-                                            monitor_latitude:
-                                            monitorLocation.latitude,
-
-                                            monitor_longitude:
-                                            monitorLocation.longitude,
-
-                                            validation_status:
-                                            validationStatus
-                                        },
-
-                                        (
-                                            err,
-                                            result
-                                        ) => {
-
-                                            if (err) {
-                                                return res.status(500)
-                                                .json(err);
-                                            }
-
-                                            res.status(201)
-                                            .json({
-
-                                                message:
-                                                "Attendance Processed",
-
-                                                validation_status:
-                                                validationStatus,
-
-                                                teacher_distance:
-                                                teacherDistance,
-
-                                                monitor_distance:
-                                                monitorDistance,
-
-                                                room_radius:
-                                                room.radius
-                                            });
-                                        }
-                                    );
-                                }
-                            );
-                        }
-                    );
-                }
+            // 3️⃣ MO LOCATION CHECK - MO ka room mein hona zaroori hai
+            const moCheck = await attendanceService.checkLocation(
+                moId, tt.room_lat, tt.room_lng, tt.radius_meters
             );
-        }
-    );
-};
-
-exports.getAllAttendance = (req, res) => {
-
-    attendanceModel.getAllAttendance(
-        (err, rows) => {
-
-            if (err) {
-                return res.status(500).json(err);
+            if (!moCheck.ok) {
+                return res.status(400).json({
+                    message: "Aap (MO) room ke radius mein nahi hain",
+                    reason: moCheck.reason,
+                    distance: moCheck.distance
+                });
             }
 
-            res.status(200).json(rows);
+            // 4️⃣ TEACHER LOCATION CHECK - sirf present/late pe
+            // (absent pe teacher room mein hota hi nahi - is liye skip)
+            let teacherCheck = { ok: true, lat: null, lng: null, distance: null };
+            if (status !== "absent") {
+                teacherCheck = await attendanceService.checkLocation(
+                    tt.teacher_id, tt.room_lat, tt.room_lng, tt.radius_meters
+                );
+                if (!teacherCheck.ok) {
+                    return res.status(400).json({
+                        message: "Teacher room ke radius mein nahi hai",
+                        reason: teacherCheck.reason,
+                        distance: teacherCheck.distance
+                    });
+                }
+            }
+
+            // 5️⃣ Sab checks pass → attendance save (proof ke saath)
+            const today = new Date().toISOString().split("T")[0];   // YYYY-MM-DD
+
+            const id = await attendanceModel.markAttendance({
+                timetable_id,
+                date: today,
+                status,
+                substitute_teacher_id,
+                marked_by: moId,
+                teacher_lat: teacherCheck.lat,
+                teacher_lng: teacherCheck.lng,
+                mo_lat: moCheck.lat,
+                mo_lng: moCheck.lng,
+                location_verified: 1,
+                time_verified: 1
+            });
+
+            res.status(201).json({
+                message: "Attendance Marked Successfully ✅",
+                id,
+                mo_distance: moCheck.distance,
+                teacher_distance: teacherCheck.distance
+            });
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
         }
-    );
-};
+    }
+
+    // GET /api/attendance/today - aaj ki sari attendance
+    async getTodayAttendance(req, res) {
+        try {
+            const today = new Date().toISOString().split("T")[0];
+            const rows = await attendanceModel.getByDate(today);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+
+    // GET /api/attendance/my-history - teacher ki apni history
+    async getTeacherHistory(req, res) {
+        try {
+            const rows = await attendanceModel.getByTeacher(req.user.user_id);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+}
+
+module.exports = new AttendanceController();

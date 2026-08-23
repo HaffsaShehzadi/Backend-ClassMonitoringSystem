@@ -1,86 +1,52 @@
 const locationModel = require("../models/locationModel");
-const locationService = require("../services/LocationService");
+const locationService = require("../services/locationService");
 
+// ============================================
+// Location Controller - GPS update + fetch
+// ============================================
 class LocationController {
 
-    updateTeacherLocation(req, res) {
+    // POST /api/location/update
+    // Teacher YA monitoring - dono ye hi endpoint use karte hain
+    // App har 30 second mein GPS bhejti hai
+    async updateLocation(req, res) {
+        try {
+            const { latitude, longitude } = req.body;
 
-        const {
-            teacher_id,
-            latitude,
-            longitude
-        } = req.body;
-
-        const validation =
-            locationService.validateCoordinates(
-                latitude,
-                longitude
-            );
-
-        if (!validation.success) {
-            return res.status(400).json({
-                message: validation.message
-            });
-        }
-
-        locationModel.updateTeacherLocation(
-            {
-                teacher_id,
-                latitude,
-                longitude
-            },
-            (err, result) => {
-
-                if (err) {
-                    return res.status(500).json(err);
-                }
-
-                res.status(201).json({
-                    message: "Teacher Location Updated"
-                });
-
+            // Coordinates valid hain ya nahi (service se check)
+            const validation = locationService.validateCoordinates(latitude, longitude);
+            if (!validation.success) {
+                return res.status(400).json({ message: validation.message });
             }
-        );
+
+            // ✅ User id TOKEN se aati hai (body se nahi)
+            // Is tarah koi doosre user ki location fake nahi kar sakta
+            const userId = req.user.user_id;
+
+            // live_locations table mein latest GPS save karo
+            await locationModel.updateLocation(userId, latitude, longitude);
+
+            res.status(201).json({ message: "Location Updated" });
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
     }
 
-    updateMonitorLocation(req, res) {
+    // GET /api/location/latest/:userId
+    // Kisi user ka latest GPS dekhna (testing + admin ke liye)
+    async getLatestLocation(req, res) {
+        try {
+            const location = await locationModel.getLatestLocation(req.params.userId);
 
-        const {
-            monitor_id,
-            latitude,
-            longitude
-        } = req.body;
-
-        const validation =
-            locationService.validateCoordinates(
-                latitude,
-                longitude
-            );
-
-        if (!validation.success) {
-            return res.status(400).json({
-                message: validation.message
-            });
-        }
-
-        locationModel.updateMonitorLocation(
-            {
-                monitor_id,
-                latitude,
-                longitude
-            },
-            (err, result) => {
-
-                if (err) {
-                    return res.status(500).json(err);
-                }
-
-                res.status(201).json({
-                    message: "Monitor Location Updated"
-                });
-
+            // Agar user ne abhi tak location nahi bheji
+            if (!location) {
+                return res.status(404).json({ message: "Location not found" });
             }
-        );
+
+            res.json(location);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
     }
 }
 

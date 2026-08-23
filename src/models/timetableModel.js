@@ -1,108 +1,115 @@
 const db = require("../../Database");
 
-const createTimetable = (timetableData, callback) => {
+// ============================================
+// Timetable Model - timetable table handle karta hai
+// Naya schema: department_id, semester, day, period_id,
+//              teacher_id, subject_code, room_id, section
+// ============================================
+class TimetableModel {
 
-    const sql = `
-        INSERT INTO timetable
-        (
-            lecture_date,
-            day_name,
-            lecture_no,
-            start_time,
-            end_time,
-            room_id,
-            teacher_id,
-            department_id,
-            semester_no,
-            subject_name
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    // Ek timetable entry ki POORI maloomat (JOIN ke saath)
+    // Attendance validation ko ye sab chahiye:
+    //   - room ka GPS + radius (location check)
+    //   - period ka time (time check)
+    //   - teacher_id (teacher ki location ke liye)
+    async getById(id) {
+        const sql = `
+            SELECT t.*, 
+                   r.room_no, r.latitude AS room_lat, 
+                   r.longitude AS room_lng, r.radius_meters,
+                   p.period_number, p.start_time, p.end_time, p.shift
+            FROM timetable t
+            JOIN rooms r ON t.room_id = r.id
+            JOIN periods p ON t.period_id = p.id
+            WHERE t.id = ?
+        `;
+        const [rows] = await db.promise().query(sql, [id]);
+        return rows[0];
+    }
 
-    db.query(
-        sql,
-        [
-            timetableData.lecture_date,
-            timetableData.day_name,
-            timetableData.lecture_no,
-            timetableData.start_time,
-            timetableData.end_time,
-            timetableData.room_id,
-            timetableData.teacher_id,
-            timetableData.department_id,
-            timetableData.semester_no,
-            timetableData.subject_name
-        ],
-        callback
-    );
-};
+    // Specific day + shift ki sari classes
+    // (MO ki marking screen - "aaj ki classes")
+    async getByDayAndShift(day, shift) {
+        const sql = `
+            SELECT t.*, 
+                   r.room_no,
+                   p.period_number, p.start_time, p.end_time,
+                   u.name AS teacher_name
+            FROM timetable t
+            JOIN rooms r ON t.room_id = r.id
+            JOIN periods p ON t.period_id = p.id
+            JOIN users u ON t.teacher_id = u.id
+            WHERE t.day = ? AND p.shift = ?
+            ORDER BY p.period_number
+        `;
+        const [rows] = await db.promise().query(sql, [day, shift]);
+        return rows;
+    }
 
-const getAllTimetables = (callback) => {
+    // Poori timetable list (admin ke liye - JOIN ke saath)
+    async getAll() {
+        const sql = `
+            SELECT t.*,
+                   d.dept_name, r.room_no,
+                   p.period_number, p.start_time, p.end_time,
+                   u.name AS teacher_name
+            FROM timetable t
+            JOIN departments d ON t.department_id = d.id
+            JOIN rooms r ON t.room_id = r.id
+            JOIN periods p ON t.period_id = p.id
+            JOIN users u ON t.teacher_id = u.id
+            ORDER BY t.day, p.period_number
+        `;
+        const [rows] = await db.promise().query(sql);
+        return rows;
+    }
 
-    const sql = `
-        SELECT *
-        FROM timetable
-        ORDER BY timetable_id DESC
-    `;
+    // Nayi class add karna (admin)
+    async create(data) {
+        const sql = `
+            INSERT INTO timetable
+            (department_id, semester, day, period_id, teacher_id, subject_code, room_id, section)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        const [result] = await db.promise().query(sql, [
+            data.department_id,
+            data.semester,
+            data.day,
+            data.period_id,
+            data.teacher_id,
+            data.subject_code,
+            data.room_id,
+            data.section
+        ]);
+        return result.insertId;
+    }
 
-    db.query(sql, callback);
-};
-
-const updateTimetable = (id, timetableData, callback) => {
-
-    const sql = `
-        UPDATE timetable
-        SET
-            lecture_date = ?,
-            day_name = ?,
-            lecture_no = ?,
-            start_time = ?,
-            end_time = ?,
-            room_id = ?,
-            teacher_id = ?,
-            department_id = ?,
-            semester_no = ?,
-            subject_name = ?
-        WHERE timetable_id = ?
-    `;
-
-    db.query(
-        sql,
-        [
-            timetableData.lecture_date,
-            timetableData.day_name,
-            timetableData.lecture_no,
-            timetableData.start_time,
-            timetableData.end_time,
-            timetableData.room_id,
-            timetableData.teacher_id,
-            timetableData.department_id,
-            timetableData.semester_no,
-            timetableData.subject_name,
+    // Class update karna (admin)
+    async update(id, data) {
+        const sql = `
+            UPDATE timetable
+            SET department_id = ?, semester = ?, day = ?, period_id = ?,
+                teacher_id = ?, subject_code = ?, room_id = ?, section = ?
+            WHERE id = ?
+        `;
+        await db.promise().query(sql, [
+            data.department_id,
+            data.semester,
+            data.day,
+            data.period_id,
+            data.teacher_id,
+            data.subject_code,
+            data.room_id,
+            data.section,
             id
-        ],
-        callback
-    );
-};
+        ]);
+    }
 
-const deleteTimetable = (id, callback) => {
+    // Class delete karna (admin)
+    async remove(id) {
+        const sql = `DELETE FROM timetable WHERE id = ?`;
+        await db.promise().query(sql, [id]);
+    }
+}
 
-    const sql = `
-        DELETE FROM timetable
-        WHERE timetable_id = ?
-    `;
-
-    db.query(sql, [id], callback);
-};
-
-module.exports = {
-    createTimetable,
-    getAllTimetables
-};
-
-module.exports = {
-    createTimetable,
-    getAllTimetables,
-    updateTimetable,
-    deleteTimetable
-};
+module.exports = new TimetableModel();
