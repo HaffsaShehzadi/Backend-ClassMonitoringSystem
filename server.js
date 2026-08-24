@@ -11,6 +11,7 @@ const locationRoutes = require("./src/routes/locationRoutes");
 const dashboardRoutes = require("./src/routes/dashboardRoutes");
 const reportRoutes = require("./src/routes/reportRoutes");
 const teacherRoutes = require("./src/routes/teacherRoutes");
+const complaintRoutes = require("./src/routes/complaintRoutes");
 
 const app = express();
 app.use(cors());
@@ -24,6 +25,7 @@ app.use("/api/report", reportRoutes);
 app.use("/api/monitoring-duty", monitoringdutyRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/complaints", complaintRoutes);
 
 app.get("/", (req, res) => {
     res.send("API is running...");

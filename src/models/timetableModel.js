@@ -2,16 +2,12 @@ const db = require("../../Database");
 
 // ============================================
 // Timetable Model - timetable table handle karta hai
-// Naya schema: department_id, semester, day, period_id,
-//              teacher_id, subject_code, room_id, section
+// (section column hataya gaya - zarurat nahi thi)
 // ============================================
 class TimetableModel {
 
     // Ek timetable entry ki POORI maloomat (JOIN ke saath)
-    // Attendance validation ko ye sab chahiye:
-    //   - room ka GPS + radius (location check)
-    //   - period ka time (time check)
-    //   - teacher_id (teacher ki location ke liye)
+    // Attendance validation ko room GPS + period time chahiye
     async getById(id) {
         const sql = `
             SELECT t.*, 
@@ -27,8 +23,7 @@ class TimetableModel {
         return rows[0];
     }
 
-    // Specific day + shift ki sari classes
-    // (MO ki marking screen - "aaj ki classes")
+    // Specific day + shift ki sari classes (MO marking screen)
     async getByDayAndShift(day, shift) {
         const sql = `
             SELECT t.*, 
@@ -46,7 +41,7 @@ class TimetableModel {
         return rows;
     }
 
-    // Poori timetable list (admin ke liye - JOIN ke saath)
+    // Poori timetable list (admin ke liye)
     async getAll() {
         const sql = `
             SELECT t.*,
@@ -68,8 +63,8 @@ class TimetableModel {
     async create(data) {
         const sql = `
             INSERT INTO timetable
-            (department_id, semester, day, period_id, teacher_id, subject_code, room_id, section)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (department_id, semester, day, period_id, teacher_id, subject_code, room_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         const [result] = await db.promise().query(sql, [
             data.department_id,
@@ -78,8 +73,7 @@ class TimetableModel {
             data.period_id,
             data.teacher_id,
             data.subject_code,
-            data.room_id,
-            data.section
+            data.room_id
         ]);
         return result.insertId;
     }
@@ -89,7 +83,7 @@ class TimetableModel {
         const sql = `
             UPDATE timetable
             SET department_id = ?, semester = ?, day = ?, period_id = ?,
-                teacher_id = ?, subject_code = ?, room_id = ?, section = ?
+                teacher_id = ?, subject_code = ?, room_id = ?
             WHERE id = ?
         `;
         await db.promise().query(sql, [
@@ -100,7 +94,6 @@ class TimetableModel {
             data.teacher_id,
             data.subject_code,
             data.room_id,
-            data.section,
             id
         ]);
     }

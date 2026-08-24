@@ -1,97 +1,80 @@
-const timetableModel =
-require("../models/timetableModel");
+const timetableModel = require("../models/timetableModel");
 
-exports.createTimetable = (req, res) => {
+// ============================================
+// Timetable Controller - admin CRUD operations
+// CRUD = Create, Read, Update, Delete
+// ============================================
+class TimetableController {
 
-    const {
-        lecture_date,
-        day_name,
-        lecture_no,
-        start_time,
-        end_time,
-        room_id,
-        teacher_id,
-        department_id,
-        semester_no,
-        subject_name
-    } = req.body;
+    // GET /api/timetable/all
+    // Poori timetable list (admin dashboard ke liye)
+    async getAll(req, res) {
+        try {
+            const rows = await timetableModel.getAll();
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
 
-    timetableModel.createTimetable(
-        {
-            lecture_date,
-            day_name,
-            lecture_no,
-            start_time,
-            end_time,
-            room_id,
-            teacher_id,
-            department_id,
-            semester_no,
-            subject_name
-        },
-        (err, result) => {
+    // GET /api/timetable/by-day?day=Monday&shift=1st Shift
+    // MO ki marking screen ke liye - "aaj ki classes"
+    async getByDayAndShift(req, res) {
+        try {
+            // Query params URL se aate hain (?day=...&shift=...)
+            const { day, shift } = req.query;
 
-            if (err) {
-                return res.status(500).json(err);
+            if (!day || !shift) {
+                return res.status(400).json({ message: "day and shift required" });
             }
 
-            res.status(201).json({
-                message:
-                "Timetable Created Successfully"
-            });
+            const rows = await timetableModel.getByDayAndShift(day, shift);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
         }
-    );
-};
+    }
 
-exports.updateTimetable = (req, res) => {
+    // POST /api/timetable/create
+    // Nayi class add karna (sirf admin)
+    async create(req, res) {
+        try {
+            const { department_id, semester, day, period_id, teacher_id, subject_code, room_id } = req.body;
 
-    const id = req.params.id;
-
-    timetableModel.updateTimetable(
-        id,
-        req.body,
-        (err, result) => {
-
-            if (err) {
-                return res.status(500).json(err);
+            // Sab fields zaroori hain - warna error
+            if (!department_id || !semester || !day || !period_id || !teacher_id || !subject_code || !room_id) {
+                return res.status(400).json({ message: "All fields are required" });
             }
 
-            res.json({
-                message: "Timetable Updated Successfully"
-            });
+            const id = await timetableModel.create(req.body);
+            res.status(201).json({ message: "Class added to timetable", id });
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
         }
-    );
-};
+    }
 
-exports.deleteTimetable = (req, res) => {
-
-    const id = req.params.id;
-
-    timetableModel.deleteTimetable(
-        id,
-        (err, result) => {
-
-            if (err) {
-                return res.status(500).json(err);
-            }
-
-            res.json({
-                message: "Timetable Deleted Successfully"
-            });
+    // PUT /api/timetable/update/:id
+    // Class ki maloomat badalna (sirf admin)
+    async update(req, res) {
+        try {
+            // :id URL se aata hai (req.params.id)
+            await timetableModel.update(req.params.id, req.body);
+            res.json({ message: "Timetable updated" });
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
         }
-    );
-};
+    }
 
-exports.getAllTimetables = (req, res) => {
-
-    timetableModel.getAllTimetables(
-        (err, rows) => {
-
-            if (err) {
-                return res.status(500).json(err);
-            }
-
-            res.status(200).json(rows);
+    // DELETE /api/timetable/delete/:id
+    // Class hatana (sirf admin)
+    async remove(req, res) {
+        try {
+            await timetableModel.remove(req.params.id);
+            res.json({ message: "Class removed from timetable" });
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
         }
-    );
-};
+    }
+}
+
+module.exports = new TimetableController();

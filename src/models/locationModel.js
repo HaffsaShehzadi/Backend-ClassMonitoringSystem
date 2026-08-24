@@ -12,13 +12,16 @@ class LocationModel {
     //   - User pehle se table mein hai → sirf GPS update karo
     //   - Naya user hai → naya row insert karo
     // Is tarah har user ki sirf EK latest row rehti hai
+      // updated_at = CURRENT_TIMESTAMP explicitly likha hai
+    // taa ke SAME coordinates bhejne pe bhi time fresh ho
     async updateLocation(userId, latitude, longitude) {
         const sql = `
             INSERT INTO live_locations (user_id, latitude, longitude)
             VALUES (?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 latitude = VALUES(latitude),
-                longitude = VALUES(longitude)
+                longitude = VALUES(longitude),
+                updated_at = CURRENT_TIMESTAMP
         `;
         // Note: updated_at khud-ba-khud update hota hai
         // (table mein ON UPDATE CURRENT_TIMESTAMP laga hai)
