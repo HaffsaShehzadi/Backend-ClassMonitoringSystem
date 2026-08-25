@@ -3,6 +3,10 @@ const db = require("../../Database");
 // User Model - users table ka data handle karta hai
 class UserModel {
 
+    // ============================================
+    // EXISTING METHODS (aapka original code - unchanged)
+    // ============================================
+
     // Naya user register karna
     // status 'pending' rakha taa ke admin approve kare
     async createUser(userData) {
@@ -50,6 +54,56 @@ class UserModel {
             [deptName]
         );
         return result.insertId;
+    }
+
+    // ============================================
+    // ⭐ NAYE METHODS - Email Verification + Password Reset
+    // ============================================
+
+    // Email verified mark karna (signup ke baad link click pe)
+    async verifyEmail(email) {
+        const sql = `UPDATE users SET email_verified = 1 WHERE email = ?`;
+        await db.promise().query(sql, [email]);
+    }
+
+    // Auth controller ke liye wrapper (same as findUserByEmail)
+    // Taa ke controller mein dono naam use ho sakein
+    async findByEmail(email) {
+        return await this.findUserByEmail(email);
+    }
+
+    // Password reset token save karna (forgot password pe)
+    async createResetToken(email, token, expiresAt) {
+        const sql = `
+            INSERT INTO password_resets (email, token, expires_at)
+            VALUES (?, ?, ?)
+        `;
+        await db.promise().query(sql, [email, token, expiresAt]);
+    }
+
+    // Valid reset token dhundo (unused + not expired)
+    async findValidResetToken(token) {
+        const sql = `
+            SELECT * FROM password_resets
+            WHERE token = ?
+              AND used = 0
+              AND expires_at > NOW()
+            LIMIT 1
+        `;
+        const [rows] = await db.promise().query(sql, [token]);
+        return rows[0];   // valid record ya undefined
+    }
+
+    // User ka password update karna (reset ke baad)
+    async updatePassword(email, hashedPassword) {
+        const sql = `UPDATE users SET password = ? WHERE email = ?`;
+        await db.promise().query(sql, [hashedPassword, email]);
+    }
+
+    // Reset token ko used mark karna (dobara use na ho)
+    async markResetTokenUsed(token) {
+        const sql = `UPDATE password_resets SET used = 1 WHERE token = ?`;
+        await db.promise().query(sql, [token]);
     }
 }
 
