@@ -1,43 +1,68 @@
-const monitoringDutyModel =
-require("../models/monitoringDutyModel");
+const monitoringDutyModel = require("../models/monitoringdutyModel");
 
-exports.assignDuty = (req, res) => {
+// ============================================
+// Monitoring Duty Controller
+// Admin duty assign karta hai, MO apni duty dekhta hai
+// ============================================
+class MonitoringDutyController {
 
-    const {
-        monitor_id,
-        department_id
-    } = req.body;
+    // POST /api/monitoring-duty/assign
+    // Admin MO ko duty assign karta hai (sirf admin)
+    async assign(req, res) {
+        try {
+            const { official_id, department_id, shift, duty_date } = req.body;
 
-    monitoringDutyModel.assignDuty(
-        {
-            monitor_id,
-            department_id,
-            assigned_by: req.user.user_id
-        },
-        (err, result) => {
-
-            if (err) {
-                return res.status(500).json(err);
+            // Sab fields zaroori hain
+            if (!official_id || !department_id || !shift || !duty_date) {
+                return res.status(400).json({ message: "All fields are required" });
             }
 
-            res.status(201).json({
-                message:
-                "Department Assigned Successfully"
+            const id = await monitoringDutyModel.assign({
+                official_id,
+                department_id,
+                shift,
+                duty_date,
+                assigned_by: req.user.user_id   // admin ki id token se
             });
+
+            res.status(201).json({ message: "Duty assigned successfully", id });
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
         }
-    );
-};
+    }
 
-exports.getAllDuties = (req, res) => {
-
-    monitoringDutyModel.getAllDuties(
-        (err, rows) => {
-
-            if (err) {
-                return res.status(500).json(err);
-            }
-
-            res.status(200).json(rows);
+    // GET /api/monitoring-duty/my-duty
+    // MO apni KHUD ki duties dekhta hai
+    async getMyDuty(req, res) {
+        try {
+            const rows = await monitoringDutyModel.getByOfficial(req.user.user_id);
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
         }
-    );
-};
+    }
+
+    // GET /api/monitoring-duty/all
+    // Admin sari assignments dekhta hai (sirf admin)
+    async getAll(req, res) {
+        try {
+            const rows = await monitoringDutyModel.getAll();
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+
+    // DELETE /api/monitoring-duty/delete/:id
+    // Admin duty wapas leta hai (sirf admin)
+    async remove(req, res) {
+        try {
+            await monitoringDutyModel.remove(req.params.id);
+            res.json({ message: "Duty removed" });
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+}
+
+module.exports = new MonitoringDutyController();
