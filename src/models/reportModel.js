@@ -1,227 +1,147 @@
 const db = require("../../Database");
 
+// Report Model - handles attendance and performance reports
 class ReportModel {
 
-    getDailyAttendance(callback) {
-
+    // Get today's attendance records
+    async getDailyAttendance() {
         const sql = `
-            SELECT
-
-            a.attendance_id,
-
-            t.full_name
-            AS teacher_name,
-
-            m.full_name
-            AS monitor_name,
-
-            d.department_name,
-
-            a.status,
-
-            a.validation_status,
-
-            a.marked_at
-
+            SELECT 
+                a.id AS attendance_id,
+                u.name AS teacher_name,
+                mo.name AS monitor_name,
+                d.dept_name AS department_name,
+                a.status,
+                a.location_verified,
+                a.time_verified,
+                a.marked_at
             FROM attendance a
-
-            JOIN users t
-            ON a.teacher_id = t.user_id
-
-            JOIN users m
-            ON a.monitor_id = m.user_id
-
-            JOIN timetable tt
-            ON a.timetable_id = tt.timetable_id
-
-            JOIN departments d
-            ON tt.department_id = d.department_id
-
-            WHERE DATE(a.marked_at)=CURDATE()
-
+            JOIN timetable t ON a.timetable_id = t.id
+            JOIN users u ON t.teacher_id = u.id
+            JOIN users mo ON a.marked_by = mo.id
+            JOIN departments d ON t.department_id = d.id
+            WHERE a.date = CURDATE()
             ORDER BY a.marked_at DESC
         `;
-
-        db.query(sql, callback);
-
+        const [rows] = await db.promise().query(sql);
+        return rows;
     }
-    getWeeklyAttendance(callback) {
 
-    const sql = `
-        SELECT
-
-        a.attendance_id,
-
-        t.full_name
-        AS teacher_name,
-
-        m.full_name
-        AS monitor_name,
-
-        d.department_name,
-
-        a.status,
-
-        a.validation_status,
-
-        a.marked_at
-
-        FROM attendance a
-
-        JOIN users t
-        ON a.teacher_id = t.user_id
-
-        JOIN users m
-        ON a.monitor_id = m.user_id
-
-        JOIN timetable tt
-        ON a.timetable_id = tt.timetable_id
-
-        JOIN departments d
-        ON tt.department_id = d.department_id
-
-        WHERE YEARWEEK(a.marked_at,1)=YEARWEEK(CURDATE(),1)
-
-        ORDER BY a.marked_at DESC
-    `;
-
-    db.query(sql, callback);
-
-}
-getMonthlyAttendance(callback) {
-
-    const sql = `
-        SELECT
-
-        a.attendance_id,
-
-        t.full_name
-        AS teacher_name,
-
-        m.full_name
-        AS monitor_name,
-
-        d.department_name,
-
-        a.status,
-
-        a.validation_status,
-
-        a.marked_at
-
-        FROM attendance a
-
-        JOIN users t
-        ON a.teacher_id=t.user_id
-
-        JOIN users m
-        ON a.monitor_id=m.user_id
-
-        JOIN timetable tt
-        ON a.timetable_id=tt.timetable_id
-
-        JOIN departments d
-        ON tt.department_id=d.department_id
-
-        WHERE
-        MONTH(a.marked_at)=MONTH(CURDATE())
-
-        AND
-        YEAR(a.marked_at)=YEAR(CURDATE())
-
-        ORDER BY a.marked_at DESC
-    `;
-
-    db.query(sql,callback);
-
-}
-getDepartmentAttendance(department_id, callback) {
-
-    const sql = `
-        SELECT
-
-        a.attendance_id,
-
-        t.full_name
-        AS teacher_name,
-
-        m.full_name
-        AS monitor_name,
-
-        d.department_name,
-
-        a.status,
-
-        a.validation_status,
-
-        a.marked_at
-
-        FROM attendance a
-
-        JOIN users t
-        ON a.teacher_id = t.user_id
-
-        JOIN users m
-        ON a.monitor_id = m.user_id
-
-        JOIN timetable tt
-        ON a.timetable_id = tt.timetable_id
-
-        JOIN departments d
-        ON tt.department_id = d.department_id
-
-        WHERE d.department_id = ?
-
-        ORDER BY a.marked_at DESC
-    `;
-
-    db.query(sql, [department_id], callback);
-
-}
-getTeacherAttendance(teacher_id, callback) {
-
-    const sql = `
-        SELECT
-
-        a.attendance_id,
-
-        t.full_name
-        AS teacher_name,
-
-        m.full_name
-        AS monitor_name,
-
-        d.department_name,
-
-        a.status,
-
-        a.validation_status,
-
-        a.marked_at
-
-        FROM attendance a
-
-        JOIN users t
-        ON a.teacher_id = t.user_id
-
-        JOIN users m
-        ON a.monitor_id = m.user_id
-
-        JOIN timetable tt
-        ON a.timetable_id = tt.timetable_id
-
-        JOIN departments d
-        ON tt.department_id = d.department_id
-
-        WHERE a.teacher_id = ?
-
-        ORDER BY a.marked_at DESC
-    `;
-
-    db.query(sql, [teacher_id], callback);
-
-}
-
+    // Get this week's attendance records
+    async getWeeklyAttendance() {
+        const sql = `
+            SELECT 
+                a.id AS attendance_id,
+                u.name AS teacher_name,
+                mo.name AS monitor_name,
+                d.dept_name AS department_name,
+                a.status,
+                a.location_verified,
+                a.time_verified,
+                a.marked_at
+            FROM attendance a
+            JOIN timetable t ON a.timetable_id = t.id
+            JOIN users u ON t.teacher_id = u.id
+            JOIN users mo ON a.marked_by = mo.id
+            JOIN departments d ON t.department_id = d.id
+            WHERE YEARWEEK(a.date, 1) = YEARWEEK(CURDATE(), 1)
+            ORDER BY a.marked_at DESC
+        `;
+        const [rows] = await db.promise().query(sql);
+        return rows;
+    }
+
+    // Get this month's attendance records
+    async getMonthlyAttendance() {
+        const sql = `
+            SELECT 
+                a.id AS attendance_id,
+                u.name AS teacher_name,
+                mo.name AS monitor_name,
+                d.dept_name AS department_name,
+                a.status,
+                a.location_verified,
+                a.time_verified,
+                a.marked_at
+            FROM attendance a
+            JOIN timetable t ON a.timetable_id = t.id
+            JOIN users u ON t.teacher_id = u.id
+            JOIN users mo ON a.marked_by = mo.id
+            JOIN departments d ON t.department_id = d.id
+            WHERE MONTH(a.date) = MONTH(CURDATE())
+              AND YEAR(a.date) = YEAR(CURDATE())
+            ORDER BY a.marked_at DESC
+        `;
+        const [rows] = await db.promise().query(sql);
+        return rows;
+    }
+
+    // Get attendance by department
+    async getDepartmentAttendance(departmentId) {
+        const sql = `
+            SELECT 
+                a.id AS attendance_id,
+                u.name AS teacher_name,
+                mo.name AS monitor_name,
+                d.dept_name AS department_name,
+                a.status,
+                a.location_verified,
+                a.time_verified,
+                a.marked_at
+            FROM attendance a
+            JOIN timetable t ON a.timetable_id = t.id
+            JOIN users u ON t.teacher_id = u.id
+            JOIN users mo ON a.marked_by = mo.id
+            JOIN departments d ON t.department_id = d.id
+            WHERE t.department_id = ?
+            ORDER BY a.marked_at DESC
+        `;
+        const [rows] = await db.promise().query(sql, [departmentId]);
+        return rows;
+    }
+
+    // Get specific teacher's attendance history
+    async getTeacherAttendance(teacherId) {
+        const sql = `
+            SELECT 
+                a.id AS attendance_id,
+                u.name AS teacher_name,
+                mo.name AS monitor_name,
+                d.dept_name AS department_name,
+                a.status,
+                a.location_verified,
+                a.time_verified,
+                a.marked_at
+            FROM attendance a
+            JOIN timetable t ON a.timetable_id = t.id
+            JOIN users u ON t.teacher_id = u.id
+            JOIN users mo ON a.marked_by = mo.id
+            JOIN departments d ON t.department_id = d.id
+            WHERE t.teacher_id = ?
+            ORDER BY a.marked_at DESC
+        `;
+        const [rows] = await db.promise().query(sql, [teacherId]);
+        return rows;
+    }
+
+    // Attendance summary statistics
+    async getAttendanceSummary() {
+        const sql = `
+            SELECT 
+                COUNT(*) AS total_records,
+                SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS present_count,
+                SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absent_count,
+                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS late_count,
+                SUM(CASE WHEN location_verified = 1 THEN 1 ELSE 0 END) AS verified_count,
+                ROUND(
+                    (SUM(CASE WHEN location_verified = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 
+                    2
+                ) AS verification_rate
+            FROM attendance
+        `;
+        const [rows] = await db.promise().query(sql);
+        return rows[0];
+    }
 }
 
 module.exports = new ReportModel();

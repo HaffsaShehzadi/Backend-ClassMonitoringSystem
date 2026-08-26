@@ -21,7 +21,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/timetable", timetableRoutes);
 app.use("/api/attendance", attendanceRoutes);
-app.use("/api/report", reportRoutes);
+app.use("/api/reports", reportRoutes);
 app.use("/api/monitoring-duty", monitoringdutyRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
