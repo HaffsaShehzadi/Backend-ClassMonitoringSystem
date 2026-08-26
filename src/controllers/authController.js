@@ -4,12 +4,9 @@ const crypto = require("crypto");
 
 const userModel = require("../models/userModel");
 const emailService = require("../services/emailService");
-
-// ============================================
 // Auth Controller
 // Signup + Email Verify + Login
 // + Forgot Password + Reset Password
-// ============================================
 class AuthController {
 
     // ---------- 1️⃣ SIGNUP ----------
@@ -56,7 +53,7 @@ class AuthController {
             await emailService.sendVerificationEmail(email, verifyToken);
 
             res.status(201).json({
-                message: "Signup successful! Email pe verification link bheja gaya hai 📧"
+                message: "Signup successful! Verification link send to email 📧"
             });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -89,7 +86,7 @@ class AuthController {
             await userModel.verifyEmail(decoded.email);
 
             res.json({
-                message: "✅ Email verify ho gaya! Ab admin approval ka wait karein."
+                message: "✅ Email verifed successfully! Now wait for admin approval."
             });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -116,7 +113,7 @@ class AuthController {
             // ⭐ EMAIL VERIFIED CHECK (naya!)
             if (!user.email_verified) {
                 return res.status(403).json({
-                    message: "Pehle email verify karein - email pe link bheja gaya hai 📧"
+                    message: "Firstverify email - link is send to your email"
                 });
             }
 
@@ -124,13 +121,13 @@ class AuthController {
             if (user.status === "pending") {
                 return res.status(200).json({
                     status: "pending",
-                    message: "Admin approval ka wait karein"
+                    message: "Wait for Admin approval"
                 });
             }
             if (user.status === "rejected") {
                 return res.status(403).json({
                     status: "rejected",
-                    message: "Aapki request reject ho gayi hai"
+                    message: "Your request has been rejected"
                 });
             }
 
