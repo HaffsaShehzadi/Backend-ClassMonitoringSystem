@@ -34,5 +34,13 @@ router.get(
     roleMiddleware.authorize("teacher"),
     attendanceController.getTeacherHistory
 );
+// PUT /api/attendance/update/:id
+// Attendance update karna (sirf admin) - sirf status change kar sakta hai 
+router.put(
+    "/update/:id",
+    verifyToken,
+    roleMiddleware.authorize("admin"),
+    attendanceController.updateAttendance
+);
 
 module.exports = router;

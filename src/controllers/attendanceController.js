@@ -1,10 +1,9 @@
 const attendanceModel = require("../models/attendanceModel");
 const attendanceService = require("../services/attendanceService");
 const timetableModel = require("../models/timetableModel");
+const db = require("../../Database");
 
-// ============================================
 // Attendance Controller - marking + history
-// ============================================
 class AttendanceController {
 
     // POST /api/attendance/mark
@@ -12,19 +11,19 @@ class AttendanceController {
     async markAttendance(req, res) {
         try {
             const { timetable_id, status, substitute_teacher_id } = req.body;
-            const moId = req.user.user_id;   // token se MO ki id
+            const moId = req.user.user_id;
 
             if (!timetable_id || !status) {
                 return res.status(400).json({ message: "timetable_id and status required" });
             }
 
-            // 1️⃣ Timetable ki poori maloomat (room GPS + period time + teacher_id)
+            // Timetable ki poori maloomat (room GPS + period time + teacher_id)
             const tt = await timetableModel.getById(timetable_id);
             if (!tt) {
-                return res.status(404).json({ message: "Timetable Not Found" });
+                return res.status(404).json({ message: "Timetable not found" });
             }
 
-            // 2️⃣ TIME CHECK - lecture ke time mein hi mark ho sakti hai
+            // TIME CHECK - lecture ke time mein hi mark ho sakti hai
             const timeCheck = attendanceService.checkTime(tt.start_time, tt.end_time);
             if (!timeCheck.time_verified) {
                 return res.status(400).json({
@@ -34,19 +33,19 @@ class AttendanceController {
                 });
             }
 
-            // 3️⃣ MO LOCATION CHECK - MO ka room mein hona zaroori hai
+            // MO LOCATION CHECK - MO ka room mein hona zaroori hai
             const moCheck = await attendanceService.checkLocation(
                 moId, tt.room_lat, tt.room_lng, tt.radius_meters
             );
             if (!moCheck.ok) {
                 return res.status(400).json({
-                    message: "Aap (MO) room ke radius mein nahi hain",
+                    message: "You (MO) are not within the room radius",
                     reason: moCheck.reason,
                     distance: moCheck.distance
                 });
             }
 
-            // 4️⃣ TEACHER LOCATION CHECK - sirf present/late pe
+            // TEACHER LOCATION CHECK - sirf present/late pe
             // (absent pe teacher room mein hota hi nahi - is liye skip)
             let teacherCheck = { ok: true, lat: null, lng: null, distance: null };
             if (status !== "absent") {
@@ -55,15 +54,15 @@ class AttendanceController {
                 );
                 if (!teacherCheck.ok) {
                     return res.status(400).json({
-                        message: "Teacher room ke radius mein nahi hai",
+                        message: "Teacher is not within the room radius",
                         reason: teacherCheck.reason,
                         distance: teacherCheck.distance
                     });
                 }
             }
 
-            // 5️⃣ Sab checks pass → attendance save (proof ke saath)
-            const today = new Date().toISOString().split("T")[0];   // YYYY-MM-DD
+            // Sab checks pass → attendance save (proof ke saath)
+            const today = new Date().toISOString().split("T")[0];
 
             const id = await attendanceModel.markAttendance({
                 timetable_id,
@@ -80,7 +79,7 @@ class AttendanceController {
             });
 
             res.status(201).json({
-                message: "Attendance Marked Successfully ✅",
+                message: "Attendance marked successfully",
                 id,
                 mo_distance: moCheck.distance,
                 teacher_distance: teacherCheck.distance
@@ -110,6 +109,29 @@ class AttendanceController {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
+
+    // PUT /api/attendance/update/:id
+    // Admin attendance edit kar sakta hai
+    async updateAttendance(req, res) {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Sirf present ya absent allowed hai
+        if (!["present", "absent"].includes(status)) {
+            return res.status(400).json({ message: "Status must be present or absent" });
+        }
+
+        await db.promise().query(
+            "UPDATE attendance SET status = ? WHERE id = ?",
+            [status, id]
+        );
+
+        res.json({ message: "Attendance updated successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+}
 }
 
 module.exports = new AttendanceController();

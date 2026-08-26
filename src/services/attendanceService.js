@@ -1,16 +1,14 @@
 const locationModel = require("../models/locationModel");
 const locationService = require("./locationService");
 
-// ============================================
-// Attendance Service - VALIDATION KA MAIN LOGIC ⭐
+// Attendance Service - validation ka main logic
 // Ye service check karti hai:
-//   1. TIME: lecture ke time mein mark ho rahi hai?
-//   2. LOCATION: user room ke radius mein hai?
-//   3. FRESHNESS: location 5 minute se purani to nahi?
-// ============================================
+//   TIME: lecture ke time mein mark ho rahi hai?
+//   LOCATION: user room ke radius mein hai?
+//   FRESHNESS: location 5 minute se purani to nahi?
 class AttendanceService {
 
-    // ---------- TIME CHECK ----------
+    // Time check
     // Abhi ka server time period ke time ke andar hai ya nahi
     // period example: "08:30:00" se "09:15:00"
     checkTime(start_time, end_time) {
@@ -28,7 +26,7 @@ class AttendanceService {
         };
     }
 
-    // ---------- LOCATION + FRESHNESS CHECK ----------
+    // Location + freshness check
     // User room ke radius mein hai ya nahi
     async checkLocation(userId, roomLat, roomLng, radius) {
         // User ka latest GPS lao (live_locations se)
@@ -38,13 +36,13 @@ class AttendanceService {
         if (!loc) {
             return {
                 ok: false,
-                reason: "Location not received - app open nahi hai",
+                reason: "Location not received - app is not open",
                 lat: null,
                 lng: null
             };
         }
 
-        // FRESHNESS CHECK ⭐ (examiner ko ye zaroor batana)
+        // Freshness check
         // 5 minute se purani location accept NAHI hoti
         const updated = new Date(loc.updated_at);
         const now = new Date();
@@ -53,13 +51,13 @@ class AttendanceService {
         if (minutesDiff > 5) {
             return {
                 ok: false,
-                reason: "Location purani hai (5 min se zyada)",
+                reason: "Location is stale (older than 5 minutes)",
                 lat: loc.latitude,
                 lng: loc.longitude
             };
         }
 
-        // HAVERSINE: user GPS vs room GPS ka distance (meters)
+        // Haversine: user GPS vs room GPS ka distance (meters)
         const distance = locationService.calculateDistance(
             loc.latitude,
             loc.longitude,
@@ -72,10 +70,10 @@ class AttendanceService {
 
         return {
             ok,
-            distance: Math.round(distance),   // meters mein (rounded)
+            distance: Math.round(distance),
             lat: loc.latitude,
             lng: loc.longitude,
-            reason: ok ? "Within radius" : "Room ke radius se bahar hai"
+            reason: ok ? "Within radius" : "Outside the room radius"
         };
     }
 }

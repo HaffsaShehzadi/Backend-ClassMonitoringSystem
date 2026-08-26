@@ -103,6 +103,22 @@ class TimetableModel {
         const sql = `DELETE FROM timetable WHERE id = ?`;
         await db.promise().query(sql, [id]);
     }
+    //check if teacher has a class at the same day and period (for conflict checking)
+    async checkConflict(teacherId, day, periodId, excludeId = null) {
+    let sql = `
+        SELECT * FROM timetable 
+        WHERE teacher_id = ? AND day = ? AND period_id = ?
+    `;
+    const params = [teacherId, day, periodId];
+    
+    if (excludeId) {
+        sql += ` AND id != ?`;
+        params.push(excludeId);
+    }
+    
+    const [rows] = await db.promise().query(sql, params);
+    return rows.length > 0; // true = conflict hai
+}
 }
 
 module.exports = new TimetableModel();

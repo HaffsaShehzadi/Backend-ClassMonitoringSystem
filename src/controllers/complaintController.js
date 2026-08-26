@@ -1,8 +1,6 @@
 const complaintModel = require("../models/complaintModel");
 
-// ============================================
 // Complaint Controller - teacher + admin logic
-// ============================================
 class ComplaintController {
 
     // POST /api/complaints/create
@@ -10,7 +8,7 @@ class ComplaintController {
     async create(req, res) {
         try {
             const { text } = req.body;
-            const teacherId = req.user.user_id;   // token se teacher ki id
+            const teacherId = req.user.user_id;
 
             // Text khali nahi hona chahiye
             if (!text) {
@@ -58,7 +56,7 @@ class ComplaintController {
             }
 
             await complaintModel.updateStatus(req.params.id, status);
-            res.json({ message: "Complaint " + status + " ✅" });
+            res.json({ message: `Complaint ${status} successfully` });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }

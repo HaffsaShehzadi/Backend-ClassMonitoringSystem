@@ -4,12 +4,13 @@ const crypto = require("crypto");
 
 const userModel = require("../models/userModel");
 const emailService = require("../services/emailService");
+
 // Auth Controller
 // Signup + Email Verify + Login
 // + Forgot Password + Reset Password
 class AuthController {
 
-    // ---------- 1️⃣ SIGNUP ----------
+    // Signup method
     async signup(req, res) {
         try {
             const { name, email, password, role, department } = req.body;
@@ -42,25 +43,25 @@ class AuthController {
                 departmentId
             });
 
-            // ⭐ Email verification token banao (24 ghante valid)
+            // Email verification token banao (24 ghante valid)
             const verifyToken = jwt.sign(
                 { email: email, purpose: "verify" },
                 process.env.JWT_SECRET,
                 { expiresIn: "24h" }
             );
 
-            // ⭐ Verification email bhejo
+            // Verification email bhejo
             await emailService.sendVerificationEmail(email, verifyToken);
 
             res.status(201).json({
-                message: "Signup successful! Verification link send to email 📧"
+                message: "Signup successful! Verification link sent to your email"
             });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
 
-    // ---------- 2️⃣ VERIFY EMAIL ----------
+    // Verify email method
     async verifyEmail(req, res) {
         try {
             const { token } = req.query;
@@ -74,7 +75,7 @@ class AuthController {
             try {
                 decoded = jwt.verify(token, process.env.JWT_SECRET);
             } catch (err) {
-                return res.status(400).json({ message: "Invalid ya expired link" });
+                return res.status(400).json({ message: "Invalid or expired verification link" });
             }
 
             // Check: ye verification token hai?
@@ -86,14 +87,14 @@ class AuthController {
             await userModel.verifyEmail(decoded.email);
 
             res.json({
-                message: "✅ Email verifed successfully! Now wait for admin approval."
+                message: "Email verified successfully. Please wait for admin approval."
             });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
 
-    // ---------- 3️⃣ LOGIN ----------
+    // Login method
     async login(req, res) {
         try {
             const { email, password } = req.body;
@@ -101,37 +102,37 @@ class AuthController {
             // User dhundo
             const user = await userModel.findUserByEmail(email);
             if (!user) {
-                return res.status(400).json({ message: "Invalid Email" });
+                return res.status(400).json({ message: "Invalid email or password" });
             }
 
             // Password match
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
-                return res.status(400).json({ message: "Invalid Password" });
+                return res.status(400).json({ message: "Invalid email or password" });
             }
 
-            // ⭐ EMAIL VERIFIED CHECK (naya!)
+            // Email verified check
             if (!user.email_verified) {
                 return res.status(403).json({
-                    message: "Firstverify email - link is send to your email"
+                    message: "Please verify your email address first"
                 });
             }
 
-            // ⭐ APPROVAL CHECK
+            // Approval check
             if (user.status === "pending") {
                 return res.status(200).json({
                     status: "pending",
-                    message: "Wait for Admin approval"
+                    message: "Your account is pending admin approval"
                 });
             }
             if (user.status === "rejected") {
                 return res.status(403).json({
                     status: "rejected",
-                    message: "Your request has been rejected"
+                    message: "Your account has been rejected. Please contact admin."
                 });
             }
 
-            // JWT token (no expiry - aapka existing style)
+            // JWT token (no expiry - existing style)
             const token = jwt.sign(
                 { user_id: user.id, role: user.role },
                 process.env.JWT_SECRET
@@ -139,7 +140,7 @@ class AuthController {
 
             res.status(200).json({
                 status: "approved",
-                message: "Login Successful",
+                message: "Login successful",
                 token,
                 user: {
                     id: user.id,
@@ -154,21 +155,21 @@ class AuthController {
         }
     }
 
-    // ---------- 4️⃣ PROFILE ----------
+    // Profile method
     profile(req, res) {
         res.status(200).json({
-            message: "Profile Loaded",
+            message: "Profile loaded",
             user: req.user
         });
     }
 
-    // ---------- 5️⃣ FORGOT PASSWORD ----------
+    // Forgot password method
     async forgotPassword(req, res) {
         try {
             const { email } = req.body;
 
             if (!email) {
-                return res.status(400).json({ message: "Email required" });
+                return res.status(400).json({ message: "Email is required" });
             }
 
             const user = await userModel.findUserByEmail(email);
@@ -176,14 +177,14 @@ class AuthController {
             // Security: email na mile to bhi same message do
             if (!user) {
                 return res.json({
-                    message: "Agar email registered hai to reset link bheja gaya hai 📧"
+                    message: "If the email is registered, a reset link has been sent"
                 });
             }
 
-            // ⭐ Email verified hona zaroori hai!
+            // Email verified hona zaroori hai
             if (!user.email_verified) {
                 return res.status(403).json({
-                    message: "Pehle email verify karein, phir password reset karein"
+                    message: "Please verify your email before requesting a password reset"
                 });
             }
 
@@ -200,30 +201,30 @@ class AuthController {
             await emailService.sendPasswordResetEmail(email, resetToken);
 
             res.json({
-                message: "Password reset link email pe bheja gaya hai 📧"
+                message: "Password reset link has been sent to your email"
             });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
 
-    // ---------- 6️⃣ RESET PASSWORD ----------
+    // Reset password method
     async resetPassword(req, res) {
         try {
             const { token, newPassword } = req.body;
 
             if (!token || !newPassword) {
-                return res.status(400).json({ message: "Token aur naya password required" });
+                return res.status(400).json({ message: "Token and new password are required" });
             }
 
             if (newPassword.length < 6) {
-                return res.status(400).json({ message: "Password kam se kam 6 characters ka ho" });
+                return res.status(400).json({ message: "Password must be at least 6 characters" });
             }
 
             // Valid token dhundo
             const resetRecord = await userModel.findValidResetToken(token);
             if (!resetRecord) {
-                return res.status(400).json({ message: "Invalid ya expired reset link" });
+                return res.status(400).json({ message: "Invalid or expired reset link" });
             }
 
             // Naya password hash
@@ -236,7 +237,7 @@ class AuthController {
             await userModel.markResetTokenUsed(token);
 
             res.json({
-                message: "✅ Password change ho gaya! Ab naye password se login karein."
+                message: "Password has been reset successfully. You can now login with your new password."
             });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });

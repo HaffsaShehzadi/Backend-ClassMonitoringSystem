@@ -3,10 +3,6 @@ const db = require("../../Database");
 // User Model - users table ka data handle karta hai
 class UserModel {
 
-    // ============================================
-    // EXISTING METHODS (aapka original code - unchanged)
-    // ============================================
-
     // Naya user register karna
     // status 'pending' rakha taa ke admin approve kare
     async createUser(userData) {
@@ -22,7 +18,7 @@ class UserModel {
             userData.role,
             userData.departmentId
         ]);
-        return result.insertId;   // naye user ki id wapas dena
+        return result.insertId;
     }
 
     // Email se user dhundo (department name ke saath)
@@ -35,7 +31,7 @@ class UserModel {
             WHERE u.email = ?
         `;
         const [rows] = await db.promise().query(sql, [email]);
-        return rows[0];   // pehla user return karo
+        return rows[0];
     }
 
     // Department name se id lana
@@ -56,10 +52,6 @@ class UserModel {
         return result.insertId;
     }
 
-    // ============================================
-    // ⭐ NAYE METHODS - Email Verification + Password Reset
-    // ============================================
-
     // Email verified mark karna (signup ke baad link click pe)
     async verifyEmail(email) {
         const sql = `UPDATE users SET email_verified = 1 WHERE email = ?`;
@@ -67,7 +59,6 @@ class UserModel {
     }
 
     // Auth controller ke liye wrapper (same as findUserByEmail)
-    // Taa ke controller mein dono naam use ho sakein
     async findByEmail(email) {
         return await this.findUserByEmail(email);
     }
@@ -91,7 +82,7 @@ class UserModel {
             LIMIT 1
         `;
         const [rows] = await db.promise().query(sql, [token]);
-        return rows[0];   // valid record ya undefined
+        return rows[0];
     }
 
     // User ka password update karna (reset ke baad)

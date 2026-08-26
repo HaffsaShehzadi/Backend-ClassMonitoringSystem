@@ -1,9 +1,6 @@
 const dashboardModel = require("../models/dashboardModel");
 
-// ============================================
-// Dashboard Controller - admin ke counts
-// + teacher approval system
-// ============================================
+// Dashboard Controller - admin counts + teacher approval system
 class DashboardController {
 
     // GET /api/dashboard/admin
@@ -29,11 +26,11 @@ class DashboardController {
     }
 
     // PUT /api/dashboard/approve/:id
-    // Admin teacher ko approve karta hai ⭐
+    // Admin teacher ko approve karta hai
     async approveUser(req, res) {
         try {
             await dashboardModel.approveUser(req.params.id);
-            res.json({ message: "User approved ✅ - ab login kar sakta hai" });
+            res.json({ message: "User approved successfully. They can now login." });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
@@ -44,7 +41,7 @@ class DashboardController {
     async rejectUser(req, res) {
         try {
             await dashboardModel.rejectUser(req.params.id);
-            res.json({ message: "User rejected ❌" });
+            res.json({ message: "User rejected" });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
