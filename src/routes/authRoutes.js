@@ -3,44 +3,28 @@ const router = express.Router();
 const authController = require("../controllers/authController");
 const verifyToken = require("../middleware/authMiddleware");
 
-// User signup
-router.post(
-    "/signup",
-    authController.signup
-);
+// 1. User signup
+router.post("/signup", authController.signup);
 
-// User login
-router.post(
-    "/login",
-    authController.login
-);
+// 2. Verify OTP (NEW)
+router.post("/verify-otp", authController.verifyOTP);
 
-// Get user profile (protected route)
-router.get(
-    "/profile",
-    verifyToken,
-    authController.profile
-);
+// 3. Resend OTP (NEW)
+router.post("/resend-otp", authController.resendOTP);
 
-// Email verification (link from email)
-// Signup ke baad email pe link aata hai - user click karta hai
-router.get(
-    "/verify-email",
-    authController.verifyEmail
-);
+// 4. User login
+router.post("/login", authController.login);
 
-// Request password reset link
-// User email bhejta hai - reset link email pe jata hai
-router.post(
-    "/forgot-password",
-    authController.forgotPassword
-);
+// 5. Get user profile (protected route)
+router.get("/profile", verifyToken, authController.profile);
 
-// Reset password with token
-// User token + naya password bhejta hai - password change hota hai
-router.post(
-    "/reset-password",
-    authController.resetPassword
-);
+// 6. Email verification (link from email) - OLD (Fallback)
+router.get("/verify-email", authController.verifyEmail);
+
+// 7. Request password reset link
+router.post("/forgot-password", authController.forgotPassword);
+
+// 8. Reset password with token
+router.post("/reset-password", authController.resetPassword);
 
 module.exports = router;

@@ -27,10 +27,12 @@ class TimetableModel {
     async getByDayAndShift(day, shift) {
         const sql = `
             SELECT t.*, 
+                   d.dept_name,
                    r.room_no,
                    p.period_number, p.start_time, p.end_time,
                    u.name AS teacher_name
             FROM timetable t
+            JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
             JOIN users u ON t.teacher_id = u.id

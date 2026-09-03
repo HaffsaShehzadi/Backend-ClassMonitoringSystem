@@ -6,7 +6,6 @@ const db = require("../../Database");
 class TimetableController {
 
     // GET /api/timetable/all
-    // Poori timetable list (admin dashboard ke liye)
     async getAll(req, res) {
         try {
             const rows = await timetableModel.getAll();
@@ -17,16 +16,12 @@ class TimetableController {
     }
 
     // GET /api/timetable/by-day?day=Monday&shift=1st Shift
-    // MO ki marking screen ke liye - "aaj ki classes"
     async getByDayAndShift(req, res) {
         try {
-            // Query params URL se aate hain (?day=...&shift=...)
             const { day, shift } = req.query;
-
             if (!day || !shift) {
                 return res.status(400).json({ message: "day and shift required" });
             }
-
             const rows = await timetableModel.getByDayAndShift(day, shift);
             res.json(rows);
         } catch (error) {
@@ -35,17 +30,34 @@ class TimetableController {
     }
 
     // POST /api/timetable/create
-    // Nayi class add karna (sirf admin)
     async create(req, res) {
         try {
-            const { department_id, semester, day, period_id, teacher_id, subject_code, room_id } = req.body;
+            // ✅ Frontend se Text (Naam/Number) aa raha hai
+            const { teacher_name, room_no, department_name, subject_code, semester, day, period_number } = req.body;
 
             // Sab fields zaroori hain - warna error
-            if (!department_id || !semester || !day || !period_id || !teacher_id || !subject_code || !room_id) {
+            if (!teacher_name || !room_no || !department_name || !subject_code || !semester || !day || !period_number) {
                 return res.status(400).json({ message: "All fields are required" });
             }
 
-            // Teacher conflict check
+            // ✅ SMART MAPPING: Database se IDs dhundo (Text se ID banayenge)
+            const [teacherRows] = await db.promise().query("SELECT id FROM users WHERE name = ? AND role = 'teacher'", [teacher_name]);
+            if (teacherRows.length === 0) return res.status(400).json({ message: "Teacher not found in database. Please check spelling." });
+            const teacher_id = teacherRows[0].id;
+
+            const [roomRows] = await db.promise().query("SELECT id FROM rooms WHERE room_no = ?", [room_no]);
+            if (roomRows.length === 0) return res.status(400).json({ message: "Room not found in database. Please check room number." });
+            const room_id = roomRows[0].id;
+
+            const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
+            if (deptRows.length === 0) return res.status(400).json({ message: "Department not found in database." });
+            const department_id = deptRows[0].id;
+
+            const [periodRows] = await db.promise().query("SELECT id FROM periods WHERE period_number = ?", [period_number]);
+            if (periodRows.length === 0) return res.status(400).json({ message: "Period not found in database." });
+            const period_id = periodRows[0].id;
+
+            // ✅ AAPKA ORIGINAL CONFLICT CHECK LOGIC (Bilkul same, koi change nahi)
             const [teacherConflict] = await db.promise().query(
                 `SELECT t.id, u.name AS teacher_name, p.start_time, p.end_time
                  FROM timetable t
@@ -65,7 +77,6 @@ class TimetableController {
                 });
             }
 
-            // Room conflict check
             const [roomConflict] = await db.promise().query(
                 `SELECT t.id, r.room_no, p.start_time, p.end_time
                  FROM timetable t
@@ -85,7 +96,17 @@ class TimetableController {
                 });
             }
 
-            const id = await timetableModel.create(req.body);
+            // ✅ Model ko IDs ke sath bhejo taake save ho jaye
+            const id = await timetableModel.create({
+                department_id,
+                semester,
+                day,
+                period_id,
+                teacher_id,
+                subject_code,
+                room_id
+            });
+
             res.status(201).json({ message: "Class added to timetable", id });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -93,15 +114,27 @@ class TimetableController {
     }
 
     // PUT /api/timetable/update/:id
-    // Class ki maloomat badalna (sirf admin)
     async update(req, res) {
         try {
-            const { day, period_id, teacher_id, room_id } = req.body;
+            // ✅ Frontend se Text (Naam/Number) aa raha hai
+            const { teacher_name, room_no, department_name, subject_code, semester, day, period_number } = req.body;
             const timetableId = req.params.id;
 
-            // Agar teacher/day/period change ho raha hai to conflict check karo
+            // ✅ SMART MAPPING for Update bhi
+            const [teacherRows] = await db.promise().query("SELECT id FROM users WHERE name = ? AND role = 'teacher'", [teacher_name]);
+            const teacher_id = teacherRows.length > 0 ? teacherRows[0].id : null;
+
+            const [roomRows] = await db.promise().query("SELECT id FROM rooms WHERE room_no = ?", [room_no]);
+            const room_id = roomRows.length > 0 ? roomRows[0].id : null;
+
+            const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
+            const department_id = deptRows.length > 0 ? deptRows[0].id : null;
+
+            const [periodRows] = await db.promise().query("SELECT id FROM periods WHERE period_number = ?", [period_number]);
+            const period_id = periodRows.length > 0 ? periodRows[0].id : null;
+
+            // ✅ AAPKA ORIGINAL CONFLICT CHECK LOGIC (Bilkul same)
             if (teacher_id && day && period_id) {
-                // Teacher conflict check (exclude current record)
                 const [teacherConflict] = await db.promise().query(
                     `SELECT t.id, u.name AS teacher_name, p.start_time, p.end_time
                      FROM timetable t
@@ -122,7 +155,6 @@ class TimetableController {
                 }
             }
 
-            // Room conflict check (exclude current record)
             if (room_id && day && period_id) {
                 const [roomConflict] = await db.promise().query(
                     `SELECT t.id, r.room_no, p.start_time, p.end_time
@@ -144,7 +176,16 @@ class TimetableController {
                 }
             }
 
-            await timetableModel.update(req.params.id, req.body);
+            await timetableModel.update(timetableId, {
+                department_id,
+                semester,
+                day,
+                period_id,
+                teacher_id,
+                subject_code,
+                room_id
+            });
+            
             res.json({ message: "Timetable updated" });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -152,7 +193,6 @@ class TimetableController {
     }
 
     // DELETE /api/timetable/delete/:id
-    // Class hatana (sirf admin)
     async remove(req, res) {
         try {
             await timetableModel.remove(req.params.id);

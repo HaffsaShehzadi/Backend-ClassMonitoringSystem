@@ -96,6 +96,53 @@ class UserModel {
         const sql = `UPDATE password_resets SET used = 1 WHERE token = ?`;
         await db.promise().query(sql, [token]);
     }
+
+    // ==================== OTP METHODS (NEW) ====================
+    
+    // OTP create karna (signup ke time)
+    async createOTP(email) {
+        // 6 digit OTP generate karo
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes valid
+
+        // Pehle purana OTP delete karo (agar hai)
+        await db.promise().query(
+            "DELETE FROM user_otps WHERE email = ? AND used = 0",
+            [email]
+        );
+
+        const sql = `
+            INSERT INTO user_otps (email, otp, expires_at)
+            VALUES (?, ?, ?)
+        `;
+        await db.promise().query(sql, [email, otp, expiresAt]);
+        
+        return otp; // Demo ke liye OTP return kar rahe hain
+    }
+
+    // OTP verify karna
+    async verifyOTP(email, otp) {
+        const sql = `
+            SELECT * FROM user_otps
+            WHERE email = ? AND otp = ? AND used = 0 AND expires_at > NOW()
+            LIMIT 1
+        `;
+        const [rows] = await db.promise().query(sql, [email, otp]);
+        
+        if (rows.length === 0) {
+            return false;
+        }
+
+        // OTP ko used mark karo
+        await this.markOTPAsUsed(otp);
+        return true;
+    }
+
+    // OTP ko used mark karna (dobara use na ho)
+    async markOTPAsUsed(otp) {
+        const sql = `UPDATE user_otps SET used = 1 WHERE otp = ?`;
+        await db.promise().query(sql, [otp]);
+    }
 }
 
 module.exports = new UserModel();

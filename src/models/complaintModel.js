@@ -19,9 +19,17 @@ class ComplaintModel {
     // Admin: SARI complaints dekhta hai (teacher name ke saath)
     async getAll() {
         const sql = `
-            SELECT c.*, u.name AS teacher_name
+            SELECT 
+                c.id, 
+                c.complaint_text AS text, 
+                DATE_FORMAT(c.created_date, '%Y-%m-%d') AS date, 
+                u.name AS submittedBy, 
+                d.dept_name AS department, 
+                c.status, 
+                DATE_FORMAT(c.resolved_date, '%Y-%m-%d') AS resolvedDate
             FROM complaints c
             JOIN users u ON c.teacher_id = u.id
+            LEFT JOIN departments d ON u.department_id = d.id
             ORDER BY c.created_date DESC
         `;
         const [rows] = await db.promise().query(sql);
@@ -29,9 +37,16 @@ class ComplaintModel {
     }
 
     // Teacher: apni KHUD ki complaints dekhta hai
+        // Teacher: apni KHUD ki complaints dekhta hai (Frontend fields ke mutabiq)
     async getByTeacher(teacherId) {
         const sql = `
-            SELECT * FROM complaints
+            SELECT 
+                id, 
+                complaint_text AS text, 
+                DATE_FORMAT(created_date, '%Y-%m-%d') AS date, 
+                status, 
+                DATE_FORMAT(resolved_date, '%Y-%m-%d') AS resolvedDate
+            FROM complaints
             WHERE teacher_id = ?
             ORDER BY created_date DESC
         `;

@@ -1,15 +1,12 @@
 const db = require("../../Database");
 
-// Attendance Model - attendance table handle karta hai
-// Har record mein location + time proof save hota hai
 class AttendanceModel {
 
-    // Attendance mark karna (validation flags ke saath)
-    // location_verified / time_verified: 1 = pass, 0 = fail
     async markAttendance(data) {
+        // ✅ CHANGE: substitute_teacher_id ki jagah substitute_teacher_name
         const sql = `
             INSERT INTO attendance
-            (timetable_id, date, status, substitute_teacher_id, marked_by,
+            (timetable_id, date, status, substitute_teacher_name, marked_by,
              teacher_lat, teacher_lng, mo_lat, mo_lng,
              location_verified, time_verified)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -18,9 +15,9 @@ class AttendanceModel {
             data.timetable_id,
             data.date,
             data.status,
-            data.substitute_teacher_id || null,   // optional hai
-            data.marked_by,                        // MO ki id (token se)
-            data.teacher_lat || null,              // proof ke liye save
+            data.substitute_teacher_name || null, // ✅ String value accept karega
+            data.marked_by,
+            data.teacher_lat || null,
             data.teacher_lng || null,
             data.mo_lat || null,
             data.mo_lng || null,
@@ -30,7 +27,6 @@ class AttendanceModel {
         return result.insertId;
     }
 
-    // Kisi date ki sari attendance (MO / admin ke liye)
     async getByDate(date) {
         const sql = `
             SELECT a.*, 
@@ -49,19 +45,48 @@ class AttendanceModel {
         return rows;
     }
 
-    // Teacher ki apni attendance history
-    // (Teacher dashboard ke liye)
-    async getByTeacher(teacherId) {
-        const sql = `
-            SELECT a.*, r.room_no, p.period_number, t.day
+        // Teacher ki apni attendance history (Frontend ke exact fields ke sath)
+    async getByTeacher(teacherId, startDate, endDate, shift) {
+        let sql = `
+            SELECT 
+                a.date, 
+                t.day, 
+                p.period_number AS period, 
+                p.start_time, 
+                p.end_time, 
+                r.room_no AS room, 
+                t.subject_code AS code, 
+                d.dept_name AS dept, 
+                t.semester AS sem, 
+                a.status, 
+                a.substitute_teacher_name AS substitute
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
+            JOIN departments d ON t.department_id = d.id
             WHERE t.teacher_id = ?
-            ORDER BY a.date DESC
         `;
-        const [rows] = await db.promise().query(sql, [teacherId]);
+        const params = [teacherId];
+
+        // ✅ Frontend se aane wale filters apply karein
+        if (shift) {
+            sql += ` AND p.shift = ?`;
+            params.push(shift);
+        }
+        if (startDate) {
+            sql += ` AND a.date >= ?`;
+            params.push(startDate);
+        }
+        if (endDate) {
+            sql += ` AND a.date <= ?`;
+            params.push(endDate);
+        }
+
+        // Date ke hisab se descending, aur period ke hisab se ascending order
+        sql += ` ORDER BY a.date DESC, p.period_number ASC`;
+
+        const [rows] = await db.promise().query(sql, params);
         return rows;
     }
 }
