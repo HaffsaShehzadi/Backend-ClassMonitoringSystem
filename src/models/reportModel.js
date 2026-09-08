@@ -76,51 +76,65 @@ class ReportModel {
         return rows;
     }
 
-    // Get attendance by department
-    async getDepartmentAttendance(departmentId) {
+    // Get attendance by department (with date range)
+    async getDepartmentAttendance(departmentId, startDate, endDate) {
         const sql = `
             SELECT 
-                a.id AS attendance_id,
-                u.name AS teacher_name,
-                mo.name AS monitor_name,
-                d.dept_name AS department_name,
+                a.id,
+                a.date,
+                d.dept_name AS dept,
+                t.semester AS sem,
+                t.day,
+                p.period_number AS period,
+                u.name AS teacher,
+                t.subject_code AS code,
+                r.room_no AS room,
                 a.status,
-                a.location_verified,
-                a.time_verified,
-                a.marked_at
+                a.substitute_teacher_name AS substitute,
+                mo.name AS markedBy
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
             JOIN users mo ON a.marked_by = mo.id
             JOIN departments d ON t.department_id = d.id
+            JOIN rooms r ON t.room_id = r.id
+            JOIN periods p ON t.period_id = p.id
             WHERE t.department_id = ?
-            ORDER BY a.marked_at DESC
+              AND a.date >= ? AND a.date <= ?
+            ORDER BY a.date DESC, p.period_number ASC
         `;
-        const [rows] = await db.promise().query(sql, [departmentId]);
+        const [rows] = await db.promise().query(sql, [departmentId, startDate, endDate]);
         return rows;
     }
 
-    // Get specific teacher's attendance history
-    async getTeacherAttendance(teacherId) {
+    // Get specific teacher's attendance history (with date range)
+    async getTeacherAttendance(teacherId, startDate, endDate) {
         const sql = `
             SELECT 
-                a.id AS attendance_id,
-                u.name AS teacher_name,
-                mo.name AS monitor_name,
-                d.dept_name AS department_name,
+                a.id,
+                a.date,
+                d.dept_name AS dept,
+                t.semester AS sem,
+                t.day,
+                p.period_number AS period,
+                u.name AS teacher,
+                t.subject_code AS code,
+                r.room_no AS room,
                 a.status,
-                a.location_verified,
-                a.time_verified,
-                a.marked_at
+                a.substitute_teacher_name AS substitute,
+                mo.name AS markedBy
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
             JOIN users mo ON a.marked_by = mo.id
             JOIN departments d ON t.department_id = d.id
+            JOIN rooms r ON t.room_id = r.id
+            JOIN periods p ON t.period_id = p.id
             WHERE t.teacher_id = ?
-            ORDER BY a.marked_at DESC
+              AND a.date >= ? AND a.date <= ?
+            ORDER BY a.date DESC, p.period_number ASC
         `;
-        const [rows] = await db.promise().query(sql, [teacherId]);
+        const [rows] = await db.promise().query(sql, [teacherId, startDate, endDate]);
         return rows;
     }
 

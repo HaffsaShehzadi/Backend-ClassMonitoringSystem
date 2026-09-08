@@ -37,7 +37,8 @@ class ReportController {
     async getDepartmentAttendance(req, res) {
         try {
             const departmentId = req.params.department_id;
-            const rows = await reportModel.getDepartmentAttendance(departmentId);
+            const { startDate, endDate } = req.query; // ✅ Date range receive karna
+            const rows = await reportModel.getDepartmentAttendance(departmentId, startDate, endDate);
             res.status(200).json(rows);
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -48,7 +49,8 @@ class ReportController {
     async getTeacherAttendance(req, res) {
         try {
             const teacherId = req.params.teacher_id;
-            const rows = await reportModel.getTeacherAttendance(teacherId);
+            const { startDate, endDate } = req.query; // ✅ Date range receive karna
+            const rows = await reportModel.getTeacherAttendance(teacherId, startDate, endDate);
             res.status(200).json(rows);
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });

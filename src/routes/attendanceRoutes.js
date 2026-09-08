@@ -39,6 +39,13 @@ router.get(
     roleMiddleware.authorize("teacher"),
     attendanceController.getTeacherHistory
 );
+// GET /api/attendance/mo-history
+router.get(
+    "/mo-history",
+    verifyToken,
+    roleMiddleware.authorize("monitoring"),
+    attendanceController.getMOHistory
+);
 
 // PUT /api/attendance/update/:id
 router.put(

@@ -7,20 +7,42 @@ const db = require("../../Database");
 class MonitoringDutyModel {
 
     // Admin nayi duty assign karta hai
+    // ✅ UPDATED: Ab multiple departments ek sath insert kar sakta hai (Bulk Insert)
     async assign(data) {
+        const { official_id, department_ids, shift, duty_date, assigned_by } = data;
+        
+        // Agar array nahi hai to single value ko array bana do
+        const deptIds = Array.isArray(department_ids) ? department_ids : [department_ids];
+
+        // ✅ BULK INSERT: Ek query mein multiple rows insert karna
+        // Yeh fast aur efficient hai
+        const placeholders = deptIds.map(() => '(?, ?, ?, ?, ?)').join(', ');
+        
         const sql = `
             INSERT INTO duty_assignments 
             (official_id, department_id, shift, duty_date, assigned_by)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES ${placeholders}
         `;
-        const [result] = await db.promise().query(sql, [
-            data.official_id,      // MO ki id
-            data.department_id,    // kis department ki duty
-            data.shift,            // 1st Shift / 2nd Shift
-            data.duty_date,        // kis din ki duty (YYYY-MM-DD)
-            data.assigned_by       // admin ki id (token se)
+
+        // Values ko flatten karna taake SQL query mein pass kar sakein
+        const values = deptIds.flatMap(deptId => [
+            official_id,
+            deptId,
+            shift,
+            duty_date,
+            assigned_by
         ]);
-        return result.insertId;
+
+        const [result] = await db.promise().query(sql, values);
+        
+        // Saare inserted IDs return karein
+        const startId = result.insertId;
+        const insertedIds = [];
+        for (let i = 0; i < deptIds.length; i++) {
+            insertedIds.push(startId + i);
+        }
+        
+        return insertedIds;
     }
 
     // MO apni KHUD ki duties dekhta hai
@@ -57,6 +79,21 @@ class MonitoringDutyModel {
     async remove(id) {
         const sql = `DELETE FROM duty_assignments WHERE id = ?`;
         await db.promise().query(sql, [id]);
+    }
+    // Admin kisi specific MO ki us din ki purani duties delete karta hai (Edit se pehle)
+    async deleteByOfficialAndDate(official_id, duty_date) {
+        const sql = `DELETE FROM duty_assignments WHERE official_id = ? AND duty_date = ?`;
+        await db.promise().query(sql, [official_id, duty_date]);
+    }
+        // Admin kisi specific MO ki us din ki purani duties delete karta hai
+    async deleteByOfficialAndDate(official_id, duty_date) {
+        const sql = `DELETE FROM duty_assignments WHERE official_id = ? AND duty_date = ?`;
+        await db.promise().query(sql, [official_id, duty_date]);
+    }
+        // Admin kisi specific MO ki us din ki aur us shift ki purani duties delete karta hai
+    async deleteByOfficialAndDateAndShift(official_id, duty_date, shift) {
+        const sql = `DELETE FROM duty_assignments WHERE official_id = ? AND duty_date = ? AND shift = ?`;
+        await db.promise().query(sql, [official_id, duty_date, shift]);
     }
 }
 

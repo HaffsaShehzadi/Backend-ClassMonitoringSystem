@@ -8,7 +8,6 @@ class AttendanceController {
     // POST /api/attendance/mark
     async markAttendance(req, res) {
         try {
-            // ✅ CHANGE: substitute_teacher_id ki jagah substitute_teacher_name
             const { timetable_id, status, substitute_teacher_name } = req.body;
             const moId = req.user.user_id;
 
@@ -60,7 +59,6 @@ class AttendanceController {
 
             const today = new Date().toISOString().split("T")[0];
 
-            // ✅ CHANGE: Model ko substitute_teacher_name bhej rahe hain
             const id = await attendanceModel.markAttendance({
                 timetable_id,
                 date: today,
@@ -106,17 +104,40 @@ class AttendanceController {
                         continue;
                     }
 
-                    // ✅ CHANGE: Yahan bhi substitute_teacher_name use hoga
+                    // ✅ OFFLINE VALIDATION: Check if saved MO location is within room radius
+                    const R = 6371e3; // Earth radius in metres
+                    const φ1 = record.mo_lat * Math.PI / 180;
+                    const φ2 = tt.room_lat * Math.PI / 180;
+                    const Δφ = (tt.room_lat - record.mo_lat) * Math.PI / 180;
+                    const Δλ = (tt.room_lng - record.mo_lng) * Math.PI / 180;
+
+                    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                              Math.cos(φ1) * Math.cos(φ2) *
+                              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    const distance = R * c; // Distance in metres
+
+                    // ✅ Agar MO ki saved location room ke radius se bahar hai, toh reject kardo
+                    if (distance > tt.radius_meters) {
+                        results.push({ 
+                            success: false, 
+                            local_id: record.local_id, 
+                            error: `MO location invalid. Distance: ${Math.round(distance)}m, Allowed: ${tt.radius_meters}m` 
+                        });
+                        continue;
+                    }
+
+                    // ✅ Agar location valid hai, toh database mein save kardo
                     const id = await attendanceModel.markAttendance({
                         timetable_id: record.timetable_id,
                         date: record.date,
                         status: record.status.toLowerCase(),
-                        substitute_teacher_name: record.substitute_teacher_name || null, // ✅ FIXED
+                        substitute_teacher_name: record.substitute_teacher_name || null,
                         marked_by: moId,
-                        teacher_lat: record.teacher_lat || null,
-                        teacher_lng: record.teacher_lng || null,
-                        mo_lat: record.mo_lat || null,
-                        mo_lng: record.mo_lng || null,
+                        teacher_lat: null, // Offline mein teacher ki location nahi hoti
+                        teacher_lng: null,
+                        mo_lat: record.mo_lat,
+                        mo_lng: record.mo_lng,
                         location_verified: 1,
                         time_verified: 1
                     });
@@ -149,17 +170,28 @@ class AttendanceController {
     }
 
     // GET /api/attendance/my-history
-        // GET /api/attendance/my-history
     async getTeacherHistory(req, res) {
         try {
             const teacherId = req.user.user_id;
-            
-            // ✅ Frontend se aane wale query parameters extract karein
             const { startDate, endDate, shift } = req.query;
-            
-            // Model ko pass karein
             const rows = await attendanceModel.getByTeacher(teacherId, startDate, endDate, shift);
-            
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+
+    // GET /api/attendance/mo-history
+    async getMOHistory(req, res) {
+        try {
+            const moId = req.user.user_id;
+            const { date, department_id } = req.query;
+
+            if (!date) {
+                return res.status(400).json({ message: "Date is required" });
+            }
+
+            const rows = await attendanceModel.getMOHistory(moId, date, department_id);
             res.json(rows);
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -170,15 +202,19 @@ class AttendanceController {
     async updateAttendance(req, res) {
         try {
             const { id } = req.params;
-            const { status } = req.body;
+            const { status, substitute_teacher_name } = req.body;
 
-            if (!["present", "absent"].includes(status)) {
-                return res.status(400).json({ message: "Status must be present or absent" });
+            if (!status || !["present", "absent"].includes(status.toLowerCase())) {
+                return res.status(400).json({ message: "Status must be 'present' or 'absent'" });
             }
 
             await db.promise().query(
-                "UPDATE attendance SET status = ? WHERE id = ?",
-                [status, id]
+                `UPDATE attendance 
+                 SET status = ?, 
+                     substitute_teacher_name = ?,
+                     updated_at = NOW()
+                 WHERE id = ?`,
+                [status.toLowerCase(), substitute_teacher_name || null, id]
             );
 
             res.json({ message: "Attendance updated successfully" });

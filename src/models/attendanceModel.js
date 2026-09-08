@@ -89,6 +89,33 @@ class AttendanceModel {
         const [rows] = await db.promise().query(sql, params);
         return rows;
     }
+    // MO ki attendance history (Date aur Department ke hisaab se)
+    async getMOHistory(moId, date, departmentId) {
+        let sql = `
+            SELECT 
+                a.id, a.date, t.day, p.period_number AS period, 
+                p.start_time, p.end_time, r.room_no AS room, 
+                t.subject_code AS code, d.dept_name AS dept, 
+                t.semester AS sem, a.status, a.substitute_teacher_name AS substitute
+            FROM attendance a
+            JOIN timetable t ON a.timetable_id = t.id
+            JOIN rooms r ON t.room_id = r.id
+            JOIN periods p ON t.period_id = p.id
+            JOIN departments d ON t.department_id = d.id
+            WHERE a.marked_by = ? AND a.date = ?
+        `;
+        const params = [moId, date];
+
+        if (departmentId) {
+            sql += ` AND t.department_id = ?`;
+            params.push(departmentId);
+        }
+
+        sql += ` ORDER BY p.period_number ASC`;
+
+        const [rows] = await db.promise().query(sql, params);
+        return rows;
+    }
 }
 
 module.exports = new AttendanceModel();
