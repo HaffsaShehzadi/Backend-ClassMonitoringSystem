@@ -62,28 +62,36 @@ class TimetableController {
         }
     }
 
-    async create(req, res) {
+            async create(req, res) {
         try {
             const { teacher_name, room_no, department_name, subject_code, semester, day, period_number, shift } = req.body;
             if (!teacher_name || !room_no || !department_name || !subject_code || !semester || !day || !period_number || !shift) {
                 return res.status(400).json({ message: "All fields are required" });
             }
 
+            // 1. Teacher ID dhundna
             const [teacherRows] = await db.promise().query("SELECT id FROM users WHERE name = ? AND role = 'teacher'", [teacher_name]);
             if (teacherRows.length === 0) return res.status(400).json({ message: "Teacher not found." });
             const teacher_id = teacherRows[0].id;
 
-            const [roomRows] = await db.promise().query("SELECT id FROM rooms WHERE room_no = ?", [room_no]);
-            if (roomRows.length === 0) return res.status(400).json({ message: "Room not found." });
+            // 2. Room ID dhundna (Trim kar ke check karein taake space ka masla na ho)
+            const cleanRoomNo = room_no.trim();
+            const [roomRows] = await db.promise().query("SELECT id FROM rooms WHERE room_no = ?", [cleanRoomNo]);
+            if (roomRows.length === 0) {
+                return res.status(400).json({ 
+                    message: `Room '${cleanRoomNo}' not found in database. Please add the room first.`,
+                    hint: "Check rooms table in database."
+                }); 
+            }
             const room_id = roomRows[0].id;
 
+            // 3. Department ID dhundna
             const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
             if (deptRows.length === 0) return res.status(400).json({ message: "Department not found." });
             const department_id = deptRows[0].id;
 
-            // ✅ FIXED: Database mein Monday-Thursday ke liye 'Regular' save hota hai, Friday ke liye 'Friday'
+            // 4. Period ID dhundna (Shift aur Day ke sath)
             const periodDay = day === 'Friday' ? 'Friday' : 'Regular';
-
             const [periodRows] = await db.promise().query(
                 "SELECT id FROM periods WHERE period_number = ? AND shift = ? AND day = ?", 
                 [period_number, shift, periodDay]
@@ -91,30 +99,52 @@ class TimetableController {
             if (periodRows.length === 0) return res.status(400).json({ message: `Period not found for shift: ${shift} and day: ${periodDay}.` });
             const period_id = periodRows[0].id;
 
+            // ✅ 5. TEACHER CONFLICT CHECK (FIXED: s.semester -> t.semester)
             const [teacherConflict] = await db.promise().query(
-                `SELECT t.id, u.name AS teacher_name, p.start_time, p.end_time FROM timetable t
-                 JOIN users u ON t.teacher_id = u.id JOIN periods p ON t.period_id = p.id
-                 WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ?`,
-                [teacher_id, day, period_id, semester]
+                `SELECT t.id, u.name AS teacher_name, t.semester, d.dept_name 
+                 FROM timetable t
+                 JOIN users u ON t.teacher_id = u.id
+                 JOIN departments d ON t.department_id = d.id
+                 WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ?`,
+                [teacher_id, day, period_id]
             );
+
             if (teacherConflict.length > 0) {
-                return res.status(400).json({ message: "Teacher already has a class at this time", conflict: { teacher_name: teacherConflict[0].teacher_name, time: `${teacherConflict[0].start_time} - ${teacherConflict[0].end_time}` } });
+                return res.status(400).json({ 
+                    message: `${teacher_name} is already has class in ${teacherConflict[0].semester} Sem (${teacherConflict[0].dept_name}).`,
+                    conflict: teacherConflict[0]
+                });
             }
 
+            // ✅ 6. ROOM CONFLICT CHECK
             const [roomConflict] = await db.promise().query(
-                `SELECT t.id, r.room_no, p.start_time, p.end_time FROM timetable t
-                 JOIN rooms r ON t.room_id = r.id JOIN periods p ON t.period_id = p.id
-                 WHERE t.room_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ?`,
-                [room_id, day, period_id, semester]
+                `SELECT t.id, r.room_no 
+                 FROM timetable t
+                 JOIN rooms r ON t.room_id = r.id
+                 WHERE t.room_id = ? AND t.day = ? AND t.period_id = ?`,
+                [room_id, day, period_id]
             );
+
             if (roomConflict.length > 0) {
-                return res.status(400).json({ message: "Room is already booked at this time", conflict: { room_no: roomConflict[0].room_no, time: `${roomConflict[0].start_time} - ${roomConflict[0].end_time}` } });
+                return res.status(400).json({ 
+                    message: `Room Conflict! Room ${room_no} is already booked during this period.`,
+                    conflict: roomConflict[0]
+                });
             }
 
+            // ✅ 7. Insert Record
             const id = await timetableModel.create({ department_id, semester, day, period_id, teacher_id, subject_code, room_id });
             res.status(201).json({ message: "Class added to timetable", id });
         } catch (error) {
-            res.status(500).json({ message: "Server error", error: error.message });
+            // Yeh exact error batayega ke database mein kya masla hai
+            console.error("========================================");
+            console.error("❌❌ CREATE CRASH DETAILS ❌❌");
+            console.error("Error Message:", error.message);
+            console.error("Error Code:", error.code);
+            console.error("SQL Message:", error.sqlMessage);
+            console.error("========================================");
+            
+            res.status(500).json({ message: "Server error", details: error.message });
         }
     }
 

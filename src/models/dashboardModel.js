@@ -9,17 +9,17 @@ class DashboardModel {
     // Admin dashboard ke COUNTS (frontend cards ke liye)
         // Admin dashboard ke COUNTS (frontend cards ke liye)
     async getAdminDashboard() {
-        const sql = `
-            SELECT
-                (SELECT COUNT(*) FROM users WHERE role = 'teacher') AS total_teachers,
-                (SELECT COUNT(*) FROM users WHERE role = 'monitoring') AS total_monitors,
-                (SELECT COUNT(*) FROM departments) AS total_departments,
-                (SELECT COUNT(*) FROM rooms) AS total_rooms,
-                (SELECT COUNT(*) FROM users WHERE status = 'pending') AS pending_approvals,
-                (SELECT COUNT(*) FROM complaints WHERE status = 'pending') AS pending_complaints
+    const sql = `
+        SELECT
+            (SELECT COUNT(*) FROM users WHERE role = 'teacher' AND status = 'approved') AS total_teachers,
+            (SELECT COUNT(*) FROM users WHERE role = 'monitoring' AND status = 'approved') AS total_monitors,
+            (SELECT COUNT(*) FROM departments) AS total_departments,
+            (SELECT COUNT(*) FROM rooms) AS total_rooms,
+            (SELECT COUNT(*) FROM users WHERE status = 'pending') AS pending_approvals,
+            (SELECT COUNT(*) FROM complaints WHERE status = 'pending') AS pending_complaints
         `;
         const [rows] = await db.promise().query(sql);
-        return rows[0];   // ek hi row aati hai (saare counts)
+        return rows[0];
     }
 
     // Pending teachers ki LIST (approval screen ke liye)

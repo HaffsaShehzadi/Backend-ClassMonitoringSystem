@@ -21,7 +21,7 @@ const reportRoutes = require("./src/routes/reportRoutes");
 const teacherRoutes = require("./src/routes/teacherRoutes");
 const complaintRoutes = require("./src/routes/complaintRoutes");
 const userRoutes = require("./src/routes/userRoutes"); // Path ko baqi files ke pattern ke mutabiq theek kar diya
-const departmentRoutes = require("./routes/departmentRoutes");
+const departmentRoutes = require('./src/routes/departmentRoutes');
 
 // ✅ 4. Ab 'app' use karein (Pehle yeh line upar thi, isliye error aa raha tha)
 app.use('/api/users', userRoutes);
