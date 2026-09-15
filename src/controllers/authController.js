@@ -16,58 +16,43 @@ class AuthController {
             const { name, email, password, role, department } = req.body;
 
             if (!name || !email || !password || !role) {
-                console.log('Validation Failed: Missing fields');
                 return res.status(400).json({ message: "All fields are required" });
             }
-            console.log('Validation Passed');
 
-            console.log('Checking if user exists:', email);
             const existing = await authModel.findUserByEmail(email);
             if (existing) {
-                console.log('User already exists:', email);
                 return res.status(400).json({ message: "Email already exists" });
             }
-            console.log('User does not exist - can proceed');
 
-            console.log('Hashing password...');
             const hashedPassword = await bcrypt.hash(password, 10);
-            console.log('Password hashed');
 
             let departmentId = null;
             if (department) {
-                console.log('Getting/Creating department:', department);
                 departmentId = await authModel.getOrCreateDepartment(department);
-                console.log('Department ID:', departmentId);
             }
 
-            console.log('Creating user in database...');
-            const userId = await authModel.createUser({
+            await authModel.createUser({
                 name,
                 email,
                 password: hashedPassword,
                 role,
                 departmentId
             });
-            console.log('User created with ID:', userId);
 
-            console.log('Generating OTP...');
+            // ✅ 4-Digit OTP Generate & Save
             const otp = await authModel.createOTP(email);
-            console.log('OTP Generated:', otp);
+            console.log('✅ 4-Digit OTP Generated:', otp);
 
-            // ✅ NEW: REAL EMAIL SEND - OTP email bhejna
-            console.log('Sending OTP email...');
+            // ✅ REAL EMAIL SEND
             await emailService.sendOTPEmail(email, otp);
-            console.log('✅ OTP email sent successfully to:', email);
+            console.log('✅ Real OTP email sent successfully to:', email);
 
-            console.log('SIGNUP SUCCESSFUL');
             res.status(201).json({
-                message: "Signup successful! OTP sent to your email",
-                demo_otp: otp // Testing ke liye - production mein hata dein
+                message: "Signup successful! 4-digit OTP sent to your email"
             });
 
         } catch (error) {
             console.log('SIGNUP ERROR:', error.message);
-            console.log('Stack:', error.stack);
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
@@ -81,27 +66,17 @@ class AuthController {
             const { email, otp } = req.body;
 
             if (!email || !otp) {
-                console.log('Validation Failed: Missing email or OTP');
                 return res.status(400).json({ message: "Email and OTP are required" });
             }
-            console.log('Validation Passed');
 
-            console.log('Verifying OTP in database...');
             const isValid = await authModel.verifyOTP(email, otp);
 
             if (!isValid) {
-                console.log('Invalid or expired OTP');
-                return res.status(400).json({ 
-                    message: "Invalid or expired OTP. Please try again." 
-                });
+                return res.status(400).json({ message: "Invalid or expired OTP. Please try again." });
             }
-            console.log('OTP is valid');
 
-            console.log('Marking email as verified...');
             await authModel.verifyEmail(email);
-            console.log('Email verified successfully');
 
-            console.log('OTP VERIFICATION SUCCESSFUL');
             res.json({
                 message: "Email verified successfully. Please wait for admin approval."
             });
@@ -121,32 +96,24 @@ class AuthController {
             const { email } = req.body;
 
             if (!email) {
-                console.log('Validation Failed: Missing email');
                 return res.status(400).json({ message: "Email is required" });
             }
-            console.log('Validation Passed');
 
-            console.log('Checking if user exists:', email);
             const user = await authModel.findUserByEmail(email);
             if (!user) {
-                console.log('User not found:', email);
                 return res.status(404).json({ message: "User not found" });
             }
-            console.log('User found');
 
-            console.log('Generating new OTP...');
+            // ✅ New 4-Digit OTP Generate
             const otp = await authModel.createOTP(email);
-            console.log('New OTP Generated:', otp);
+            console.log('✅ New 4-Digit OTP Generated:', otp);
 
-            // ✅ NEW: REAL EMAIL SEND - Resend OTP email
-            console.log('Sending OTP email...');
+            // ✅ REAL EMAIL SEND
             await emailService.sendOTPEmail(email, otp);
-            console.log('✅ OTP email resent successfully to:', email);
+            console.log('✅ Real OTP email resent successfully to:', email);
 
-            console.log('RESEND OTP SUCCESSFUL');
             res.json({
-                message: "OTP sent successfully",
-                demo_otp: otp // Testing ke liye
+                message: "4-digit OTP sent successfully to your email"
             });
 
         } catch (error) {
@@ -249,7 +216,7 @@ class AuthController {
         });
     }
 
-    // ==================== FORGOT PASSWORD ====================
+    // ==================== FORGOT PASSWORD (✅ UPDATED FOR OTP FLOW) ====================
     async forgotPassword(req, res) {
         console.log('\n========== FORGOT PASSWORD REQUEST ==========');
         console.log('Request Body:', req.body);
@@ -267,7 +234,7 @@ class AuthController {
             if (!user) {
                 console.log('User not found (but not revealing for security)');
                 return res.json({
-                    message: "If the email is registered, a reset link has been sent"
+                    message: "If the email is registered, an OTP has been sent"
                 });
             }
             console.log('User found');
@@ -280,20 +247,20 @@ class AuthController {
             }
             console.log('Email is verified');
 
-            console.log('Generating password reset token...');
-            const resetToken = crypto.randomBytes(32).toString("hex");
-            const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+            console.log('Generating 4-digit OTP for password reset...');
+            const otp = Math.floor(1000 + Math.random() * 9000).toString();
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-            await authModel.createResetToken(email, resetToken, expiresAt);
-            console.log('Reset token created');
+            await authModel.createResetToken(email, otp, expiresAt);
+            console.log('Reset OTP created:', otp);
 
-            console.log('Sending reset email...');
-            await emailService.sendPasswordResetEmail(email, resetToken);
-            console.log('Reset email sent');
+            console.log('Sending OTP email...');
+            await emailService.sendOTPEmail(email, otp);
+            console.log('Reset OTP email sent');
 
             console.log('FORGOT PASSWORD SUCCESSFUL');
             res.json({
-                message: "Password reset link has been sent to your email"
+                message: "Password reset OTP has been sent to your email"
             });
 
         } catch (error) {
@@ -302,17 +269,17 @@ class AuthController {
         }
     }
 
-    // ==================== RESET PASSWORD ====================
+    // ==================== RESET PASSWORD (✅ UPDATED FOR OTP FLOW) ====================
     async resetPassword(req, res) {
         console.log('\n========== RESET PASSWORD REQUEST ==========');
-        console.log('Request Body:', { token: req.body.token, newPassword: '***' });
+        console.log('Request Body:', { email: req.body.email, otp: req.body.otp, newPassword: '***' });
 
         try {
-            const { token, newPassword } = req.body;
+            const { email, otp, newPassword } = req.body;
 
-            if (!token || !newPassword) {
-                console.log('Validation Failed: Missing token or password');
-                return res.status(400).json({ message: "Token and new password are required" });
+            if (!email || !otp || !newPassword) {
+                console.log('Validation Failed: Missing email, otp, or password');
+                return res.status(400).json({ message: "Email, OTP, and new password are required" });
             }
 
             if (newPassword.length < 6) {
@@ -321,14 +288,14 @@ class AuthController {
             }
             console.log('Validation Passed');
 
-            console.log('Verifying reset token...');
-            const resetRecord = await authModel.findValidResetToken(token);
+            console.log('Verifying reset OTP...');
+            const resetRecord = await authModel.findValidResetToken(otp);
             
-            if (!resetRecord) {
-                console.log('Invalid or expired reset token');
-                return res.status(400).json({ message: "Invalid or expired reset link" });
+            if (!resetRecord || resetRecord.email !== email) {
+                console.log('Invalid or expired reset OTP');
+                return res.status(400).json({ message: "Invalid or expired OTP" });
             }
-            console.log('Reset token is valid');
+            console.log('Reset OTP is valid');
 
             console.log('Hashing new password...');
             const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -338,9 +305,9 @@ class AuthController {
             await authModel.updatePassword(resetRecord.email, hashedPassword);
             console.log('Password updated');
 
-            console.log('Marking token as used...');
-            await authModel.markResetTokenUsed(token);
-            console.log('Reset token marked as used');
+            console.log('Marking OTP as used...');
+            await authModel.markResetTokenUsed(otp);
+            console.log('Reset OTP marked as used');
 
             console.log('RESET PASSWORD SUCCESSFUL');
             res.json({

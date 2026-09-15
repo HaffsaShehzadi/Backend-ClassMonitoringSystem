@@ -4,7 +4,6 @@ const db = require("../../Database");
 class UserModel {
 
     // Naya user register karna
-    // status 'pending' rakha taa ke admin approve kare
     async createUser(userData) {
         const sql = `
             INSERT INTO users
@@ -22,7 +21,6 @@ class UserModel {
     }
 
     // Email se user dhundo (department name ke saath)
-    // LEFT JOIN: taa ke department ka naam bhi result mein aaye
     async findUserByEmail(email) {
         const sql = `
             SELECT u.*, d.dept_name AS department
@@ -35,16 +33,13 @@ class UserModel {
     }
 
     // Department name se id lana
-    // Agar department naya hai to pehle bana dena
     async getOrCreateDepartment(deptName) {
-        // Pehle check karo pehle se hai ya nahi
         const [rows] = await db.promise().query(
             "SELECT id FROM departments WHERE dept_name = ?",
             [deptName]
         );
         if (rows.length > 0) return rows[0].id;
 
-        // Nahi hai to naya bana do
         const [result] = await db.promise().query(
             "INSERT INTO departments (dept_name) VALUES (?)",
             [deptName]
@@ -52,13 +47,13 @@ class UserModel {
         return result.insertId;
     }
 
-    // Email verified mark karna (signup ke baad link click pe)
+    // Email verified mark karna
     async verifyEmail(email) {
         const sql = `UPDATE users SET email_verified = 1 WHERE email = ?`;
         await db.promise().query(sql, [email]);
     }
 
-    // Password reset token save karna (forgot password pe)
+    // Password reset token save karna
     async createResetToken(email, token, expiresAt) {
         const sql = `
             INSERT INTO password_resets (email, token, expires_at)
@@ -67,7 +62,7 @@ class UserModel {
         await db.promise().query(sql, [email, token, expiresAt]);
     }
 
-    // Valid reset token dhundo (unused + not expired)
+    // Valid reset token dhundo
     async findValidResetToken(token) {
         const sql = `
             SELECT * FROM password_resets
@@ -80,63 +75,60 @@ class UserModel {
         return rows[0];
     }
 
-    // User ka password update karna (reset ke baad)
+    // User ka password update karna
     async updatePassword(email, hashedPassword) {
         const sql = `UPDATE users SET password = ? WHERE email = ?`;
         await db.promise().query(sql, [hashedPassword, email]);
     }
 
-    // Reset token ko used mark karna (dobara use na ho)
+    // Reset token ko used mark karna
     async markResetTokenUsed(token) {
         const sql = `UPDATE password_resets SET used = 1 WHERE token = ?`;
         await db.promise().query(sql, [token]);
     }
 
-    // ==================== OTP METHODS ====================
+    // ==================== OTP METHODS (Aapki user_otps table ke mutabiq) ====================
     
-    // OTP create karna (signup ke time)
+    // OTP create karna (signup/resend ke time)
     async createOTP(email) {
-        // 6 digit OTP generate karo
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes valid
+        // ✅ 4-Digit OTP Generate karein (1000 se 9999 ke beech)
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes baad expire
 
-        // Pehle purana OTP delete karo (agar hai)
-        await db.promise().query(
-            "DELETE FROM user_otps WHERE email = ? AND used = 0",
-            [email]
-        );
-
+        // ✅ Aapki 'user_otps' table mein naya record insert karein
         const sql = `
-            INSERT INTO user_otps (email, otp, expires_at)
-            VALUES (?, ?, ?)
+            INSERT INTO user_otps (email, otp, expires_at, used)
+            VALUES (?, ?, ?, 0)
         `;
         await db.promise().query(sql, [email, otp, expiresAt]);
         
-        return otp; // Demo ke liye OTP return kar rahe hain
+        return otp;
     }
 
     // OTP verify karna
     async verifyOTP(email, otp) {
+        // ✅ 'user_otps' table se check karein ke OTP valid, unused aur unexpired hai
         const sql = `
             SELECT * FROM user_otps
             WHERE email = ? AND otp = ? AND used = 0 AND expires_at > NOW()
+            ORDER BY created_at DESC
             LIMIT 1
         `;
         const [rows] = await db.promise().query(sql, [email, otp]);
         
         if (rows.length === 0) {
-            return false;
+            return false; // OTP galat hai, expire ho chuka hai, ya pehle use ho chuka hai
         }
 
-        // OTP ko used mark karo
-        await this.markOTPAsUsed(otp);
+        // ✅ OTP ko used mark karein (ID ke zariye, taake safe ho)
+        await this.markOTPAsUsed(rows[0].id);
         return true;
     }
 
     // OTP ko used mark karna (dobara use na ho)
-    async markOTPAsUsed(otp) {
-        const sql = `UPDATE user_otps SET used = 1 WHERE otp = ?`;
-        await db.promise().query(sql, [otp]);
+    async markOTPAsUsed(otpId) {
+        const sql = `UPDATE user_otps SET used = 1 WHERE id = ?`;
+        await db.promise().query(sql, [otpId]);
     }
 }
 

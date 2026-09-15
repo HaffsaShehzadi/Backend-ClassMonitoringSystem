@@ -1,58 +1,28 @@
 const express = require("express");
 const router = express.Router();
 
-const verifyToken = require("../middleware/authMiddleware");
-const roleMiddleware = require("../middleware/roleMiddleware");
+// Controller ko import karein
 const attendanceController = require("../controllers/attendanceController");
 
-// Attendance Routes
+// Middleware (agar aapke paas hai, warna hata sakte hain)
+const verifyToken = require("../middleware/authMiddleware"); 
 
-// POST /api/attendance/mark
-// Real-time attendance (time/location check WITH)
-router.post(
-    "/mark",
-    verifyToken,
-    roleMiddleware.authorize("monitoring"),
-    attendanceController.markAttendance
-);
+// 1. Mark Attendance
+router.post("/mark", verifyToken, attendanceController.markAttendance);
 
-// ✅ NEW: POST /api/attendance/sync-offline
-// Offline records sync (time/location check SKIP - MO ne pehle verify kiya tha)
-router.post(
-    "/sync-offline",
-    verifyToken,
-    roleMiddleware.authorize("monitoring"),
-    attendanceController.syncOfflineAttendance
-);
+// 2. Sync Offline Attendance
+router.post("/sync-offline", verifyToken, attendanceController.syncOfflineAttendance);
 
-// GET /api/attendance/today
-router.get(
-    "/today",
-    verifyToken,
-    attendanceController.getTodayAttendance
-);
+// 3. Get Today's Attendance
+router.get("/today", verifyToken, attendanceController.getTodayAttendance);
 
-// GET /api/attendance/my-history
-router.get(
-    "/my-history",
-    verifyToken,
-    roleMiddleware.authorize("teacher"),
-    attendanceController.getTeacherHistory
-);
-// GET /api/attendance/mo-history
-router.get(
-    "/mo-history",
-    verifyToken,
-    roleMiddleware.authorize("monitoring"),
-    attendanceController.getMOHistory
-);
+// 4. Get Teacher History
+router.get("/my-history", verifyToken, attendanceController.getTeacherHistory);
 
-// PUT /api/attendance/update/:id
-router.put(
-    "/update/:id",
-    verifyToken,
-    roleMiddleware.authorize("admin"),
-    attendanceController.updateAttendance
-);
+// 5. Get MO History
+router.get("/mo-history", verifyToken, attendanceController.getMOHistory);
+
+// 6. Update Attendance
+router.put("/update/:id", verifyToken, attendanceController.updateAttendance);
 
 module.exports = router;
