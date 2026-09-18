@@ -1,97 +1,14 @@
-const db = require("../../Database");
+const db = require("../../Database"); // Apne database config ke mutabiq path adjust karein
 
-// Report Model - handles attendance and performance reports
 class ReportModel {
-
-    // Get today's attendance records
-    async getDailyAttendance() {
-        const sql = `
-            SELECT 
-                a.id AS attendance_id,
-                u.name AS teacher_name,
-                mo.name AS monitor_name,
-                d.dept_name AS department_name,
-                a.status,
-                a.location_verified,
-                a.time_verified,
-                a.marked_at
-            FROM attendance a
-            JOIN timetable t ON a.timetable_id = t.id
-            JOIN users u ON t.teacher_id = u.id
-            JOIN users mo ON a.marked_by = mo.id
-            JOIN departments d ON t.department_id = d.id
-            WHERE a.date = CURDATE()
-            ORDER BY a.marked_at DESC
-        `;
-        const [rows] = await db.promise().query(sql);
-        return rows;
-    }
-
-    // Get this week's attendance records
-    async getWeeklyAttendance() {
-        const sql = `
-            SELECT 
-                a.id AS attendance_id,
-                u.name AS teacher_name,
-                mo.name AS monitor_name,
-                d.dept_name AS department_name,
-                a.status,
-                a.location_verified,
-                a.time_verified,
-                a.marked_at
-            FROM attendance a
-            JOIN timetable t ON a.timetable_id = t.id
-            JOIN users u ON t.teacher_id = u.id
-            JOIN users mo ON a.marked_by = mo.id
-            JOIN departments d ON t.department_id = d.id
-            WHERE YEARWEEK(a.date, 1) = YEARWEEK(CURDATE(), 1)
-            ORDER BY a.marked_at DESC
-        `;
-        const [rows] = await db.promise().query(sql);
-        return rows;
-    }
-
-    // Get this month's attendance records
-    async getMonthlyAttendance() {
-        const sql = `
-            SELECT 
-                a.id AS attendance_id,
-                u.name AS teacher_name,
-                mo.name AS monitor_name,
-                d.dept_name AS department_name,
-                a.status,
-                a.location_verified,
-                a.time_verified,
-                a.marked_at
-            FROM attendance a
-            JOIN timetable t ON a.timetable_id = t.id
-            JOIN users u ON t.teacher_id = u.id
-            JOIN users mo ON a.marked_by = mo.id
-            JOIN departments d ON t.department_id = d.id
-            WHERE MONTH(a.date) = MONTH(CURDATE())
-              AND YEAR(a.date) = YEAR(CURDATE())
-            ORDER BY a.marked_at DESC
-        `;
-        const [rows] = await db.promise().query(sql);
-        return rows;
-    }
 
     // Get attendance by department (with date range)
     async getDepartmentAttendance(departmentId, startDate, endDate) {
         const sql = `
             SELECT 
-                a.id,
-                a.date,
-                d.dept_name AS dept,
-                t.semester AS sem,
-                t.day,
-                p.period_number AS period,
-                u.name AS teacher,
-                t.subject_code AS code,
-                r.room_no AS room,
-                a.status,
-                a.substitute_teacher_name AS substitute,
-                mo.name AS markedBy
+                a.id, a.date, d.dept_name AS dept, t.semester AS sem, t.day, p.period_number AS period, 
+                u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
+                a.substitute_teacher_name AS substitute, mo.name AS markedBy
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
@@ -99,7 +16,7 @@ class ReportModel {
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
-            WHERE t.department_id = ?
+            WHERE t.department_id = ? 
               AND a.date >= ? AND a.date <= ?
             ORDER BY a.date DESC, p.period_number ASC
         `;
@@ -111,18 +28,10 @@ class ReportModel {
     async getTeacherAttendance(teacherId, startDate, endDate) {
         const sql = `
             SELECT 
-                a.id,
-                a.date,
-                d.dept_name AS dept,
-                t.semester AS sem,
-                t.day,
-                p.period_number AS period,
-                u.name AS teacher,
-                t.subject_code AS code,
-                r.room_no AS room,
-                a.status,
-                a.substitute_teacher_name AS substitute,
-                mo.name AS markedBy
+                a.id, a.date, t.day, p.period_number AS period, p.start_time, p.end_time,
+                d.dept_name AS dept, t.semester AS sem, 
+                u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
+                a.substitute_teacher_name AS substitute, mo.name AS markedBy
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
@@ -130,7 +39,7 @@ class ReportModel {
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
-            WHERE t.teacher_id = ?
+            WHERE t.teacher_id = ? 
               AND a.date >= ? AND a.date <= ?
             ORDER BY a.date DESC, p.period_number ASC
         `;
@@ -138,23 +47,34 @@ class ReportModel {
         return rows;
     }
 
-    // Attendance summary statistics
-    async getAttendanceSummary() {
-        const sql = `
+    // Get MO's marked history (MO can only see what they marked on a specific date & dept)
+    async getMOHistory(moId, date, departmentId) {
+        let sql = `
             SELECT 
-                COUNT(*) AS total_records,
-                SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS present_count,
-                SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absent_count,
-                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS late_count,
-                SUM(CASE WHEN location_verified = 1 THEN 1 ELSE 0 END) AS verified_count,
-                ROUND(
-                    (SUM(CASE WHEN location_verified = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 
-                    2
-                ) AS verification_rate
-            FROM attendance
+                a.id, a.date, d.dept_name AS dept, t.semester AS sem, t.day, p.period_number AS period, 
+                u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
+                a.substitute_teacher_name AS substitute, mo.name AS markedBy
+            FROM attendance a
+            JOIN timetable t ON a.timetable_id = t.id
+            JOIN users u ON t.teacher_id = u.id
+            JOIN users mo ON a.marked_by = mo.id
+            JOIN departments d ON t.department_id = d.id
+            JOIN rooms r ON t.room_id = r.id
+            JOIN periods p ON t.period_id = p.id
+            WHERE a.marked_by = ? AND a.date = ?
         `;
-        const [rows] = await db.promise().query(sql);
-        return rows[0];
+        let params = [moId, date];
+
+        // Agar frontend department_id bhej raha hai, toh us se bhi filter karein
+        if (departmentId) {
+            sql += ` AND t.department_id = ?`;
+            params.push(departmentId);
+        }
+
+        sql += ` ORDER BY p.period_number ASC`;
+
+        const [rows] = await db.promise().query(sql, params);
+        return rows;
     }
 }
 

@@ -4,31 +4,7 @@ const verifyToken = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const reportController = require("../controllers/reportController");
 
-// Daily attendance report
-router.get(
-    "/daily",
-    verifyToken,
-    roleMiddleware.authorize("admin"),
-    reportController.getDailyAttendance
-);
-
-// Weekly attendance report
-router.get(
-    "/weekly",
-    verifyToken,
-    roleMiddleware.authorize("admin"),
-    reportController.getWeeklyAttendance
-);
-
-// Monthly attendance report
-router.get(
-    "/monthly",
-    verifyToken,
-    roleMiddleware.authorize("admin"),
-    reportController.getMonthlyAttendance
-);
-
-// Department-wise attendance
+// 1. Admin: Department-wise attendance (with date range)
 router.get(
     "/department/:department_id",
     verifyToken,
@@ -36,20 +12,51 @@ router.get(
     reportController.getDepartmentAttendance
 );
 
-// Teacher attendance history
+// 2. Admin or Teacher: Teacher attendance history 
+// (Security: Controller will ensure Teacher can only see their own ID's data)
 router.get(
     "/teacher/:teacher_id",
     verifyToken,
-    roleMiddleware.authorize("admin"),
+    roleMiddleware.authorize("admin", "teacher"),
     reportController.getTeacherAttendance
 );
 
-// Overall attendance summary statistics
+// 3. Teacher: Get MY OWN attendance history (Cleaner endpoint for frontend)
 router.get(
-    "/summary",
+    "/teacher/my-history",
     verifyToken,
-    roleMiddleware.authorize("admin"),
-    reportController.getAttendanceSummary
+    roleMiddleware.authorize("teacher"),
+    reportController.getMyTeacherAttendance
 );
 
+// 4. MO: Get history of classes marked by this specific MO
+router.get(
+    "/mo-history",
+    verifyToken,
+    roleMiddleware.authorize("admin", "monitoring"), // Note: Agar aapke DB mein role 'MO' hai, toh yahan 'MO' likh dein
+    reportController.getMOHistory
+);
+// Admin: Department-wise PDF
+router.get(
+    "/department/:department_id/pdf",
+    verifyToken,
+    roleMiddleware.authorize("admin"),
+    reportController.downloadDepartmentAttendancePDF
+);
+
+// Admin: Teacher-wise PDF
+router.get(
+    "/teacher/:teacher_id/pdf",
+    verifyToken,
+    roleMiddleware.authorize("admin"),
+    reportController.downloadTeacherAttendancePDF
+);
+
+// Teacher: Own PDF (unchanged)
+router.get(
+    "/teacher/my-history/pdf",
+    verifyToken,
+    roleMiddleware.authorize("teacher"),
+    reportController.downloadMyTeacherAttendancePDF
+);
 module.exports = router;

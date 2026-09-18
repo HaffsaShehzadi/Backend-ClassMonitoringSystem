@@ -175,16 +175,19 @@ class AttendanceController {
     }
 
     // 4. GET /api/attendance/my-history
+        // 4. GET /api/attendance/my-history
     async getTeacherHistory(req, res) {
         try {
             const teacherId = req.user.user_id;
             const { startDate, endDate, shift } = req.query;
             
+            // ✅ FIXED: users table ko JOIN kiya gaya hai
             let sql = `
-                SELECT a.*, t.teacher_name, t.subject_code, d.dept_name 
+                SELECT a.*, u.name as teacher_name, t.subject_code, d.dept_name, t.semester, t.period_id as period_number
                 FROM attendance a
                 JOIN timetable t ON a.timetable_id = t.id
                 JOIN departments d ON t.department_id = d.id
+                LEFT JOIN users u ON t.teacher_id = u.id
                 WHERE t.teacher_id = ?
             `;
             const params = [teacherId];
@@ -197,10 +200,13 @@ class AttendanceController {
             const [rows] = await db.promise().query(sql, params);
             res.json(rows);
         } catch (error) {
+            console.error("❌ Teacher History Error:", error);
             res.status(500).json({ message: "Server error: " + error.message });
         }
     }
 
+    // 5. GET /api/attendance/mo-history
+    // 5. GET /api/attendance/mo-history
     // 5. GET /api/attendance/mo-history
     async getMOHistory(req, res) {
         try {
@@ -211,11 +217,13 @@ class AttendanceController {
                 return res.status(400).json({ message: "Date is required" });
             }
 
+            // ✅ FIXED: t.semester aur t.period_id ko SELECT mein add kar diya gaya hai
             let sql = `
-                SELECT a.*, t.teacher_name, t.subject_code, d.dept_name 
+                SELECT a.*, u.name as teacher_name, t.subject_code, t.semester, t.period_id as period_number, d.dept_name 
                 FROM attendance a
                 JOIN timetable t ON a.timetable_id = t.id
                 JOIN departments d ON t.department_id = d.id
+                LEFT JOIN users u ON t.teacher_id = u.id
                 WHERE a.marked_by = ? AND a.date = ?
             `;
             const params = [moId, date];
@@ -228,6 +236,7 @@ class AttendanceController {
             const [rows] = await db.promise().query(sql, params);
             res.json(rows);
         } catch (error) {
+            console.error("❌ MO History Error:", error);
             res.status(500).json({ message: "Server error: " + error.message });
         }
     }
