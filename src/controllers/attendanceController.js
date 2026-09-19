@@ -1,6 +1,8 @@
 const attendanceModel = require("../models/attendanceModel");
 const attendanceService = require("../services/attendanceService");
 const timetableModel = require("../models/timetableModel");
+const locationService = require("../services/locationService");
+const locationModel = require("../models/locationModel");
 const db = require("../../Database");
 
 class AttendanceController {
@@ -8,7 +10,7 @@ class AttendanceController {
     // 1. POST /api/attendance/mark
     async markAttendance(req, res) {
         try {
-            const { timetable_id, status, substitute_teacher_name } = req.body;
+            const { timetable_id, status, substitute_teacher_name, latitude, longitude } = req.body;
             const moId = req.user.user_id;
 
             if (!timetable_id || !status) {
@@ -30,40 +32,49 @@ class AttendanceController {
                 });
             }
 
-            // 2. MO LOCATION CHECK - ✅ TESTING KE LIYE COMMENT OUT KIYA GAYA HAI
-            // Jab testing complete ho jaye toh neeche wali lines se /* aur */ hata kar wapis activate kar dein
-            /*
-            const moCheck = await attendanceService.checkLocation(
-                moId, 
-                tt.room_lat, 
-                tt.room_lng, 
-                tt.radius_meters || 500 // Default 500 meters agar DB mein radius na ho
-            );
+            // 2. MO LOCATION CHECK (Live GPS Verification)
+            let moLat = latitude;
+            let moLng = longitude;
 
-            if (!moCheck.ok) {
+            // Fallback: If coordinates not in body, check live_locations
+            if (moLat === undefined || moLng === undefined) {
+                const loc = await locationModel.getLatestLocation(moId);
+                if (loc) {
+                    moLat = loc.latitude;
+                    moLng = loc.longitude;
+                }
+            }
+
+            if (moLat === undefined || moLng === undefined) {
                 return res.status(400).json({
-                    message: "You (MO) are not within the room radius",
-                    reason: moCheck.reason,
-                    distance: moCheck.distance
+                    message: "GPS Location is required to mark attendance"
                 });
             }
-            */
 
-            // ✅ Dummy moCheck object taake neeche ka code crash na ho
-            const moCheck = {
-                ok: true,
-                distance: 0,
-                lat: 31.5204,
-                lng: 74.3587
-            };
+            // Verify distance if room coordinates exist in DB
+            let distance = 0;
+            let locationVerified = 1;
+            if (tt.room_lat && tt.room_lng) {
+                distance = locationService.calculateDistance(moLat, moLng, tt.room_lat, tt.room_lng);
+                const allowedRadius = tt.radius_meters || 50;
+
+                if (!locationService.isWithinRadius(distance, allowedRadius)) {
+                    return res.status(400).json({
+                        message: `You (MO) are not within the room radius. Distance: ${Math.round(distance)}m (Allowed: ${allowedRadius}m)`,
+                        distance: Math.round(distance),
+                        allowed_radius: allowedRadius
+                    });
+                }
+                locationVerified = 1;
+            }
 
             const today = new Date().toISOString().split("T")[0];
 
-            // 3. DATABASE INSERT (Teacher location columns hata diye gaye hain)
+            // 3. DATABASE INSERT
             const sql = `
                 INSERT INTO attendance 
                 (timetable_id, date, status, marked_by, mo_lat, mo_lng, location_verified, time_verified, substitute_teacher_name)
-                VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
             `;
             
             const [result] = await db.promise().query(sql, [
@@ -71,15 +82,16 @@ class AttendanceController {
                 today,
                 status.toLowerCase(),
                 moId,
-                moCheck.lat,   // ✅ Dummy latitude
-                moCheck.lng,   // ✅ Dummy longitude
+                moLat,
+                moLng,
+                locationVerified,
                 substitute_teacher_name || null
             ]);
 
             res.status(201).json({
                 message: "Attendance marked successfully",
                 id: result.insertId,
-                mo_distance: moCheck.distance
+                mo_distance: Math.round(distance)
             });
         } catch (error) {
             console.error("❌ Mark Attendance Error:", error);
