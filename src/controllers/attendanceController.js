@@ -120,34 +120,34 @@ class AttendanceController {
                         continue;
                     }
 
-                    // OFFLINE VALIDATION (Haversine Formula for MO Location)
-                    const R = 6371e3; 
-                    const φ1 = record.mo_lat * Math.PI / 180;
-                    const φ2 = tt.room_lat * Math.PI / 180;
-                    const Δφ = (tt.room_lat - record.mo_lat) * Math.PI / 180;
-                    const Δλ = (tt.room_lng - record.mo_lng) * Math.PI / 180;
+                    // OFFLINE LOCATION VALIDATION (Haversine Formula via LocationService)
+                    let locationVerified = 1;
+                    if (tt.room_lat && tt.room_lng) {
+                        const distance = locationService.calculateDistance(
+                            record.mo_lat, 
+                            record.mo_lng, 
+                            tt.room_lat, 
+                            tt.room_lng
+                        );
+                        const allowedRadius = tt.radius_meters || 50;
 
-                    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                              Math.cos(φ1) * Math.cos(φ2) *
-                              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    const distance = R * c; 
-
-                    // Check if within radius
-                    if (distance > (tt.radius_meters || 500)) {
-                        results.push({ 
-                            success: false, 
-                            local_id: record.local_id, 
-                            error: `MO location invalid. Distance: ${Math.round(distance)}m` 
-                        });
-                        continue;
+                        // Check if within radius
+                        if (!locationService.isWithinRadius(distance, allowedRadius)) {
+                            results.push({ 
+                                success: false, 
+                                local_id: record.local_id, 
+                                error: `MO location invalid. Distance: ${Math.round(distance)}m (Allowed: ${allowedRadius}m)` 
+                            });
+                            continue;
+                        }
+                        locationVerified = 1;
                     }
 
                     // Insert into DB
                     const sql = `
                         INSERT INTO attendance 
                         (timetable_id, date, status, marked_by, mo_lat, mo_lng, location_verified, time_verified, substitute_teacher_name)
-                        VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
                     `;
                     
                     await db.promise().query(sql, [
@@ -157,6 +157,7 @@ class AttendanceController {
                         moId,
                         record.mo_lat,
                         record.mo_lng,
+                        locationVerified,
                         record.substitute_teacher_name || null
                     ]);
 

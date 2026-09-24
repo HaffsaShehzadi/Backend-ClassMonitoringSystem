@@ -1,8 +1,3 @@
-// ============================================
-// RoleMiddleware - role-based access control
-// Sirf allowed roles ko route use karne deta hai
-// Example: users approve karna sirf ADMIN kar sakta hai
-// ============================================
 class RoleMiddleware {
 
     // authorize() - allowed roles ki list leta hai
