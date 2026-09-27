@@ -13,25 +13,22 @@ class EmailService {
             },
         });
     }
-
     // Common email bhejne ka real function
     async sendEmail(to, subject, html) {
         try {
             const mailOptions = {
-                from: process.env.EMAIL_FROM || `"Class Monitoring System" <${process.env.EMAIL_USER}>`,
+                from: process.env.EMAIL_FROM || `"Class Monitoring System" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
                 to: to,
                 subject: subject,
                 html: html,
             };
 
-            await this.transporter.sendMail(mailOptions);
-            console.log(`\n✅ REAL EMAIL SENT SUCCESSFULLY to: ${to}`);
-            return { success: true };
+            const info = await this.transporter.sendMail(mailOptions);
+            console.log(`✅ Real email sent successfully to: ${to}`);
+            return { success: true, messageId: info.messageId };
         } catch (error) {
-            console.error("\n❌ REAL EMAIL SEND FAILED:", error.message);
-            console.log("⚠️ VIVA FALLBACK: Agar Gmail ne block kiya, toh OTP backend console mein check karein!");
-            // Demo na ruke isliye success return kar rahe hain
-            return { success: true }; 
+            console.error(`❌ Real email send failed to ${to}:`, error.message);
+            throw error;
         }
     }
 
@@ -40,7 +37,7 @@ class EmailService {
         const html = `
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 400px; text-align: center;">
                 <h2 style="color: #1A237E;">Email Verification</h2>
-                <p>Hello,</p>
+                <p>Class Monitoring System,</p>
                 <p>Your 4-digit verification code is:</p>
                 <h1 style="color: #1A237E; letter-spacing: 5px; background: #f0f0f0; padding: 10px; border-radius: 5px;">${otp}</h1>
                 <p style="color: #666; font-size: 12px;">This code will expire in 10 minutes.</p>

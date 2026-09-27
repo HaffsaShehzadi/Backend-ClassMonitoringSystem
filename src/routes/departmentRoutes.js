@@ -4,11 +4,9 @@ const verifyToken = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const departmentController = require("../controllers/departmentController");
 
-// GET all departments (Admin only)
+// GET all departments (Public - used by SignUpScreen, Admin screens, etc.)
 router.get(
     "/all",
-    verifyToken,
-    roleMiddleware.authorize("admin"),
     departmentController.getAll
 );
 

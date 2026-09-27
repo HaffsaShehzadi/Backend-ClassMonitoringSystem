@@ -15,7 +15,7 @@ class DashboardModel {
             (SELECT COUNT(*) FROM users WHERE role = 'monitoring' AND status = 'approved') AS total_monitors,
             (SELECT COUNT(*) FROM departments) AS total_departments,
             (SELECT COUNT(*) FROM rooms) AS total_rooms,
-            (SELECT COUNT(*) FROM users WHERE status = 'pending') AS pending_approvals,
+            (SELECT COUNT(*) FROM users WHERE status = 'pending' AND email_verified = 1) AS pending_approvals,
             (SELECT COUNT(*) FROM complaints WHERE status = 'pending') AS pending_complaints
         `;
         const [rows] = await db.promise().query(sql);
@@ -28,7 +28,7 @@ class DashboardModel {
             SELECT u.*, d.dept_name AS department
             FROM users u
             LEFT JOIN departments d ON u.department_id = d.id
-            WHERE u.status = 'pending'
+            WHERE u.status = 'pending' AND u.email_verified = 1
             ORDER BY u.join_date DESC
         `;
         const [rows] = await db.promise().query(sql);
@@ -45,6 +45,19 @@ class DashboardModel {
     async rejectUser(userId) {
         const sql = `UPDATE users SET status = 'rejected' WHERE id = ?`;
         await db.promise().query(sql, [userId]);
+    }
+
+    // Rejected users ki LIST
+    async getRejectedUsers() {
+        const sql = `
+            SELECT u.*, d.dept_name AS department
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+            WHERE u.status = 'rejected' AND u.email_verified = 1
+            ORDER BY u.join_date DESC
+        `;
+        const [rows] = await db.promise().query(sql);
+        return rows;
     }
 }
 

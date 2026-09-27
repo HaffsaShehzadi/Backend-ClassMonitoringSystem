@@ -41,4 +41,12 @@ router.put(
     dashboardController.rejectUser
 );
 
+// GET /api/dashboard/rejected-users - rejected users list
+router.get(
+    "/rejected-users",
+    verifyToken,
+    roleMiddleware.authorize("admin"),
+    dashboardController.getRejectedUsers
+);
+
 module.exports = router;

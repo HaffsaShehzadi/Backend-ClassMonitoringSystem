@@ -46,6 +46,17 @@ class DashboardController {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
+
+    // GET /api/dashboard/rejected-users
+    // Rejected teachers ki list (rejected screen ke liye)
+    async getRejectedUsers(req, res) {
+        try {
+            const rows = await dashboardModel.getRejectedUsers();
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
 }
 
 module.exports = new DashboardController();
