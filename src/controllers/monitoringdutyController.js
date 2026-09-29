@@ -97,11 +97,14 @@ class MonitoringDutyController {
 
             const formattedRows = filteredRows.map(row => {
                 if (row.duty_date) {
-                    const d = new Date(row.duty_date);
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    row.duty_date = `${year}-${month}-${day}`;
+                    if (typeof row.duty_date === 'string') {
+                        row.duty_date = row.duty_date.split('T')[0];
+                    } else if (row.duty_date instanceof Date) {
+                        const year = row.duty_date.getFullYear();
+                        const month = String(row.duty_date.getMonth() + 1).padStart(2, '0');
+                        const day = String(row.duty_date.getDate()).padStart(2, '0');
+                        row.duty_date = `${year}-${month}-${day}`;
+                    }
                 }
                 return row;
             });
@@ -123,11 +126,14 @@ class MonitoringDutyController {
             // ✅ FIX: UTC date ko wapis local YYYY-MM-DD string mein convert karein
             const formattedRows = rows.map(row => {
                 if (row.duty_date) {
-                    const d = new Date(row.duty_date);
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    row.duty_date = `${year}-${month}-${day}`;
+                    if (typeof row.duty_date === 'string') {
+                        row.duty_date = row.duty_date.split('T')[0];
+                    } else if (row.duty_date instanceof Date) {
+                        const year = row.duty_date.getFullYear();
+                        const month = String(row.duty_date.getMonth() + 1).padStart(2, '0');
+                        const day = String(row.duty_date.getDate()).padStart(2, '0');
+                        row.duty_date = `${year}-${month}-${day}`;
+                    }
                 }
                 return row;
             });

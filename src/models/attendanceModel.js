@@ -30,6 +30,7 @@ class AttendanceModel {
     async getByDate(date) {
         const sql = `
             SELECT a.*, 
+                   DATE_FORMAT(a.date, '%Y-%m-%d') as date,
                    u.name AS teacher_name,
                    r.room_no,
                    p.period_number

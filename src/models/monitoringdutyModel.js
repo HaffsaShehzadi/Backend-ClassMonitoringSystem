@@ -67,7 +67,7 @@ class MonitoringDutyModel {
 
     async getByOfficial(officialId) {
         const sql = `
-            SELECT da.*, d.dept_name
+            SELECT da.*, DATE_FORMAT(da.duty_date, '%Y-%m-%d') AS duty_date, d.dept_name
             FROM duty_assignments da
             JOIN departments d ON da.department_id = d.id
             WHERE da.official_id = ?
@@ -80,6 +80,7 @@ class MonitoringDutyModel {
     async getAll() {
         const sql = `
             SELECT da.*,
+                   DATE_FORMAT(da.duty_date, '%Y-%m-%d') AS duty_date,
                    d.dept_name,
                    u.name AS official_name,
                    a.name AS assigned_by_name

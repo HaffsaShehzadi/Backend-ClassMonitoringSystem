@@ -6,8 +6,8 @@ class ReportModel {
     async getDepartmentAttendance(departmentId, startDate, endDate) {
         const sql = `
             SELECT 
-                a.id, a.date, d.dept_name AS dept, t.semester AS sem, t.day, p.period_number AS period, 
-                u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
+                a.id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, d.dept_name AS dept, t.semester AS sem, t.day, p.period_number AS period, 
+                p.shift, u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
                 a.substitute_teacher_name AS substitute, mo.name AS markedBy
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
@@ -28,8 +28,8 @@ class ReportModel {
     async getTeacherAttendance(teacherId, startDate, endDate) {
         const sql = `
             SELECT 
-                a.id, a.date, t.day, p.period_number AS period, p.start_time, p.end_time,
-                d.dept_name AS dept, t.semester AS sem, 
+                a.id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, t.day, p.period_number AS period, p.start_time, p.end_time,
+                p.shift, d.dept_name AS dept, t.semester AS sem, 
                 u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
                 a.substitute_teacher_name AS substitute, mo.name AS markedBy
             FROM attendance a
@@ -51,8 +51,8 @@ class ReportModel {
     async getMOHistory(moId, date, departmentId) {
         let sql = `
             SELECT 
-                a.id, a.date, d.dept_name AS dept, t.semester AS sem, t.day, p.period_number AS period, 
-                u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
+                a.id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, d.dept_name AS dept, t.semester AS sem, t.day, p.period_number AS period, 
+                p.shift, u.name AS teacher, t.subject_code AS code, r.room_no AS room, a.status, 
                 a.substitute_teacher_name AS substitute, mo.name AS markedBy
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id

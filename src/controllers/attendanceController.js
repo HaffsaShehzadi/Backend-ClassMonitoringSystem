@@ -68,15 +68,26 @@ class AttendanceController {
                 locationVerified = 1;
             }
 
-            const today = new Date().toISOString().split("T")[0];
+            const today = req.body.date || new Date().toISOString().split("T")[0];
 
-            // 3. DATABASE INSERT
+            // 3. Check if attendance already marked for this class today (Prevent duplicates!)
+            const [existingRows] = await db.promise().query(
+                "SELECT id FROM attendance WHERE timetable_id = ? AND date = ?",
+                [timetable_id, today]
+            );
+
+            if (existingRows.length > 0) {
+                return res.status(400).json({
+                    message: "Attendance has already been marked for this class today."
+                });
+            }
+
+            // Insert new record
             const sql = `
                 INSERT INTO attendance 
                 (timetable_id, date, status, marked_by, mo_lat, mo_lng, location_verified, time_verified, substitute_teacher_name)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
             `;
-            
             const [result] = await db.promise().query(sql, [
                 timetable_id,
                 today,
@@ -87,10 +98,12 @@ class AttendanceController {
                 locationVerified,
                 substitute_teacher_name || null
             ]);
+            const attendanceId = result.insertId;
+            console.log(`✅ Attendance inserted (id: ${attendanceId}) for timetable: ${timetable_id}`);
 
             res.status(201).json({
-                message: "Attendance marked successfully",
-                id: result.insertId,
+                message: existingRows.length > 0 ? "Attendance updated successfully" : "Attendance marked successfully",
+                id: attendanceId,
                 mo_distance: Math.round(distance)
             });
         } catch (error) {
@@ -143,23 +156,46 @@ class AttendanceController {
                         locationVerified = 1;
                     }
 
-                    // Insert into DB
-                    const sql = `
-                        INSERT INTO attendance 
-                        (timetable_id, date, status, marked_by, mo_lat, mo_lng, location_verified, time_verified, substitute_teacher_name)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
-                    `;
-                    
-                    await db.promise().query(sql, [
-                        record.timetable_id,
-                        record.date || today,
-                        record.status.toLowerCase(),
-                        moId,
-                        record.mo_lat,
-                        record.mo_lng,
-                        locationVerified,
-                        record.substitute_teacher_name || null
-                    ]);
+                    // Check if record already exists for this timetable and date to prevent duplicates
+                    const recordDate = record.date || today;
+                    const [existingRows] = await db.promise().query(
+                        "SELECT id FROM attendance WHERE timetable_id = ? AND date = ?",
+                        [record.timetable_id, recordDate]
+                    );
+
+                    if (existingRows.length > 0) {
+                        const updateSql = `
+                            UPDATE attendance 
+                            SET status = ?, marked_by = ?, mo_lat = ?, mo_lng = ?, 
+                                location_verified = ?, time_verified = 1, substitute_teacher_name = ?, marked_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        `;
+                        await db.promise().query(updateSql, [
+                            record.status.toLowerCase(),
+                            moId,
+                            record.mo_lat,
+                            record.mo_lng,
+                            locationVerified,
+                            record.substitute_teacher_name || null,
+                            existingRows[0].id
+                        ]);
+                    } else {
+                        const sql = `
+                            INSERT INTO attendance 
+                            (timetable_id, date, status, marked_by, mo_lat, mo_lng, location_verified, time_verified, substitute_teacher_name)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+                        `;
+                        await db.promise().query(sql, [
+                            record.timetable_id,
+                            recordDate,
+                            record.status.toLowerCase(),
+                            moId,
+                            record.mo_lat,
+                            record.mo_lng,
+                            locationVerified,
+                            record.substitute_teacher_name || null
+                        ]);
+                    }
 
                     results.push({ success: true, local_id: record.local_id });
                 } catch (err) {
@@ -179,8 +215,8 @@ class AttendanceController {
     // 3. GET /api/attendance/today
     async getTodayAttendance(req, res) {
         try {
-            const today = new Date().toISOString().split("T")[0];
-            const rows = await attendanceModel.getByDate(today);
+            const date = req.query.date || new Date().toISOString().split("T")[0];
+            const rows = await attendanceModel.getByDate(date);
             res.json(rows);
         } catch (error) {
             res.status(500).json({ message: "Server error: " + error.message });

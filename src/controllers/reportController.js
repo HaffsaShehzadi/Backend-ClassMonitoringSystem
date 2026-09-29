@@ -7,6 +7,22 @@ const PDFDocument = require("pdfkit");
 // Same neat 7-column layout, blue header & vertical/horizontal grid
 // ==========================================
 function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows, fileName }) {
+    // Deduplicate rows to prevent any duplicate rows in PDF reports
+    const uniqueRows = [];
+    const seen = new Set();
+    for (const r of (rows || [])) {
+        let dateStr = r.date;
+        if (dateStr && typeof dateStr === 'object') {
+            dateStr = dateStr.toISOString ? dateStr.toISOString().split('T')[0] : String(dateStr);
+        }
+        const key = `${dateStr}_${r.dept || ''}_${r.sem || ''}_${r.period || ''}_${r.teacher || ''}_${r.code || ''}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            uniqueRows.push(r);
+        }
+    }
+    rows = uniqueRows;
+
     const doc = new PDFDocument({ margin: 35, size: 'A4' });
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
@@ -146,7 +162,12 @@ class ReportController {
             }
 
             const rows = await reportModel.getDepartmentAttendance(departmentId, startDate, endDate);
-            res.status(200).json(rows);
+            const uniqueMap = new Map();
+            (rows || []).forEach(r => {
+                const key = `${r.date}_${r.dept}_${r.sem}_${r.period}_${r.teacher}_${r.code}`;
+                if (!uniqueMap.has(key)) uniqueMap.set(key, r);
+            });
+            res.status(200).json(Array.from(uniqueMap.values()));
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
@@ -163,7 +184,12 @@ class ReportController {
             }
 
             const rows = await reportModel.getTeacherAttendance(requestedTeacherId, startDate, endDate);
-            res.status(200).json(rows);
+            const uniqueMap = new Map();
+            (rows || []).forEach(r => {
+                const key = `${r.date}_${r.dept}_${r.sem}_${r.period}_${r.teacher}_${r.code}`;
+                if (!uniqueMap.has(key)) uniqueMap.set(key, r);
+            });
+            res.status(200).json(Array.from(uniqueMap.values()));
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
@@ -181,7 +207,12 @@ class ReportController {
             }
 
             const rows = await reportModel.getTeacherAttendance(teacherId, startDate, endDate);
-            res.status(200).json(rows);
+            const uniqueMap = new Map();
+            (rows || []).forEach(r => {
+                const key = `${r.date}_${r.dept}_${r.sem}_${r.period}_${r.teacher}_${r.code}`;
+                if (!uniqueMap.has(key)) uniqueMap.set(key, r);
+            });
+            res.status(200).json(Array.from(uniqueMap.values()));
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
