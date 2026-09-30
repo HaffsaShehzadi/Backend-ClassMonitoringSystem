@@ -48,7 +48,7 @@ class EmailService {
 
     // Password reset email
     async sendPasswordResetEmail(email, token) {
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8081'}/reset-password?token=${token}`;
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://169.58.9.166:8081'}/reset-password?token=${token}`;
         const html = `
             <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #1A237E;">Password Reset</h2>

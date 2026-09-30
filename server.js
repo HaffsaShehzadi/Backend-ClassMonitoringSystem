@@ -33,9 +33,22 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/complaints", complaintRoutes);
 app.use("/api/departments", departmentRoutes);
 
-app.get("/", (req, res) => {
-    res.send("API is running...");
-});
+const path = require("path");
+const fs = require("fs");
+
+// ✅ Web Frontend Static Serving (agar public/ folder majood ho)
+const publicPath = path.join(__dirname, "public");
+if (fs.existsSync(publicPath)) {
+    app.use(express.static(publicPath));
+    app.get("*", (req, res, next) => {
+        if (req.path.startsWith("/api")) return next();
+        res.sendFile(path.join(publicPath, "index.html"));
+    });
+} else {
+    app.get("/", (req, res) => {
+        res.send("API is running...");
+    });
+}
 
 const PORT = process.env.PORT || 5000;
 
