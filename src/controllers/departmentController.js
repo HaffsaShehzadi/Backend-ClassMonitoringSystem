@@ -1,7 +1,6 @@
 const departmentModel = require("../models/departmentModel");
 
 class DepartmentController {
-    // GET /api/departments/all
     async getAll(req, res) {
         try {
             const rows = await departmentModel.getAll();
@@ -11,5 +10,4 @@ class DepartmentController {
         }
     }
 }
-
 module.exports = new DepartmentController();
