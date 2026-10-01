@@ -59,11 +59,22 @@ class SessionModel {
             throw new Error("Cannot delete the active session. Please activate another session first.");
         }
 
-        const [classes] = await db.promise().query(`SELECT COUNT(*) as count FROM timetable WHERE session_id = ?`, [id]);
-        if (classes[0].count > 0) {
-            throw new Error(`Cannot delete session because it contains ${classes[0].count} timetable classes.`);
+        // Check if historical attendance records exist for any classes in this session
+        const [attCheck] = await db.promise().query(`
+            SELECT COUNT(*) as count 
+            FROM attendance a 
+            JOIN timetable t ON a.timetable_id = t.id 
+            WHERE t.session_id = ?
+        `, [id]);
+
+        if (attCheck[0].count > 0) {
+            throw new Error(`Cannot delete this session because it has ${attCheck[0].count} historical attendance records linked to it.`);
         }
 
+        // Delete timetable classes belonging to this session
+        await db.promise().query(`DELETE FROM timetable WHERE session_id = ?`, [id]);
+
+        // Delete the session itself
         await db.promise().query(`DELETE FROM sessions WHERE id = ?`, [id]);
         return true;
     }
