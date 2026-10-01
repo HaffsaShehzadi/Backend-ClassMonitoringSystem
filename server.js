@@ -52,6 +52,11 @@ if (fs.existsSync(publicPath)) {
     });
 }
 
+// 404 handler for unhandled API routes (ensures JSON response instead of HTML)
+app.all("/api/*", (req, res) => {
+    res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

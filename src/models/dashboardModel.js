@@ -15,5 +15,43 @@ class DashboardModel {
         const [rows] = await db.promise().query(sql);
         return rows[0]; // Pehli aur akeli row return karein jisme saare counts hain
     }
+
+    // Pending teachers ki LIST (approval screen ke liye)
+    async getPendingUsers() {
+        const sql = `
+            SELECT u.*, d.dept_name AS department
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+            WHERE u.status = 'pending' AND u.email_verified = 1
+            ORDER BY u.join_date DESC
+        `;
+        const [rows] = await db.promise().query(sql);
+        return rows;
+    }
+
+    // Admin teacher ko APPROVE karta hai
+    async approveUser(userId) {
+        const sql = `UPDATE users SET status = 'approved' WHERE id = ?`;
+        await db.promise().query(sql, [userId]);
+    }
+
+    // Admin teacher ko REJECT karta hai
+    async rejectUser(userId) {
+        const sql = `UPDATE users SET status = 'rejected' WHERE id = ?`;
+        await db.promise().query(sql, [userId]);
+    }
+
+    // Rejected users ki LIST
+    async getRejectedUsers() {
+        const sql = `
+            SELECT u.*, d.dept_name AS department
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+            WHERE u.status = 'rejected' AND u.email_verified = 1
+            ORDER BY u.join_date DESC
+        `;
+        const [rows] = await db.promise().query(sql);
+        return rows;
+    }
 }
 module.exports = new DashboardModel();

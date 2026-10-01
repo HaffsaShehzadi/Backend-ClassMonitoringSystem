@@ -10,5 +10,49 @@ class DashboardController {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
+
+    // GET /api/dashboard/pending-users
+    async getPendingUsers(req, res) {
+        try {
+            const rows = await dashboardModel.getPendingUsers();
+            res.json(rows);
+        } catch (error) {
+            console.error("Get Pending Users Error:", error.message);
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+
+    // PUT /api/dashboard/approve/:id
+    async approveUser(req, res) {
+        try {
+            await dashboardModel.approveUser(req.params.id);
+            res.json({ message: "User approved successfully. They can now login." });
+        } catch (error) {
+            console.error("Approve User Error:", error.message);
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+
+    // PUT /api/dashboard/reject/:id
+    async rejectUser(req, res) {
+        try {
+            await dashboardModel.rejectUser(req.params.id);
+            res.json({ message: "User rejected successfully." });
+        } catch (error) {
+            console.error("Reject User Error:", error.message);
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+
+    // GET /api/dashboard/rejected-users
+    async getRejectedUsers(req, res) {
+        try {
+            const rows = await dashboardModel.getRejectedUsers();
+            res.json(rows);
+        } catch (error) {
+            console.error("Get Rejected Users Error:", error.message);
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
 }
 module.exports = new DashboardController();
