@@ -69,4 +69,51 @@ class SessionModel {
     }
 }
 
+// Auto-initialize sessions table, default session, and timetable session_id
+(async function initSessionsTable() {
+    try {
+        await db.promise().query(`
+            CREATE TABLE IF NOT EXISTS \`sessions\` (
+              \`id\` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              \`session_name\` VARCHAR(100) NOT NULL UNIQUE,
+              \`is_active\` TINYINT(1) DEFAULT 0,
+              \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `);
+
+        const [existing] = await db.promise().query(`SELECT COUNT(*) as count FROM \`sessions\``);
+        if (existing[0].count === 0) {
+            await db.promise().query(`
+                INSERT INTO \`sessions\` (\`id\`, \`session_name\`, \`is_active\`) 
+                VALUES (1, 'Session 2026 Winter', 1)
+                ON DUPLICATE KEY UPDATE \`session_name\` = 'Session 2026 Winter', \`is_active\` = 1;
+            `);
+        } else {
+            const [active] = await db.promise().query(`SELECT id FROM \`sessions\` WHERE is_active = 1 LIMIT 1`);
+            if (active.length === 0) {
+                await db.promise().query(`UPDATE \`sessions\` SET is_active = 1 ORDER BY id ASC LIMIT 1`);
+            }
+        }
+
+        try {
+            await db.promise().query(`
+                ALTER TABLE \`timetable\` 
+                ADD COLUMN \`session_id\` INT NOT NULL DEFAULT 1 AFTER \`id\`;
+            `);
+        } catch (colErr) {
+            // Column already exists
+        }
+
+        await db.promise().query(`
+            UPDATE \`timetable\` 
+            SET \`session_id\` = 1 
+            WHERE \`session_id\` IS NULL OR \`session_id\` = 0;
+        `);
+
+        console.log("✅ Academic Sessions table & Session 2026 Winter verified in Database!");
+    } catch (err) {
+        console.error("⚠️ Sessions init notice:", err.message);
+    }
+})();
+
 module.exports = new SessionModel();
