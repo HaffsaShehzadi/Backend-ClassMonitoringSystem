@@ -21,9 +21,11 @@ const reportRoutes = require("./src/routes/reportRoutes");
 const complaintRoutes = require("./src/routes/complaintRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const departmentRoutes = require('./src/routes/departmentRoutes');
+const sessionRoutes = require("./src/routes/sessionRoutes");
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/sessions", sessionRoutes);
 app.use("/api/timetable", timetableRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/reports", reportRoutes);

@@ -44,7 +44,8 @@ class TimetableController {
 
     async getAll(req, res) {
         try {
-            const rows = await timetableModel.getAll();
+            const { session_id } = req.query;
+            const rows = await timetableModel.getAll(session_id ? parseInt(session_id, 10) : null);
             res.json(rows);
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -53,20 +54,27 @@ class TimetableController {
 
     async getByDayAndShift(req, res) {
         try {
-            const { day, shift } = req.query;
+            const { day, shift, session_id } = req.query;
             if (!day || !shift) return res.status(400).json({ message: "day and shift required" });
-            const rows = await timetableModel.getByDayAndShift(day, shift);
+            const rows = await timetableModel.getByDayAndShift(day, shift, session_id ? parseInt(session_id, 10) : null);
             res.json(rows);
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
 
-            async create(req, res) {
+    async create(req, res) {
         try {
-            const { teacher_name, room_no, department_name, subject_code, semester, day, period_number, shift } = req.body;
+            const { teacher_name, room_no, department_name, subject_code, semester, day, period_number, shift, session_id } = req.body;
             if (!teacher_name || !room_no || !department_name || !subject_code || !semester || !day || !period_number || !shift) {
                 return res.status(400).json({ message: "All fields are required" });
+            }
+
+            // 0. Determine target session_id
+            let targetSessionId = session_id ? parseInt(session_id, 10) : null;
+            if (!targetSessionId) {
+                const [activeSessions] = await db.promise().query("SELECT id FROM sessions WHERE is_active = 1 LIMIT 1");
+                targetSessionId = activeSessions.length > 0 ? activeSessions[0].id : 1;
             }
 
             // 1. Teacher ID dhundna
@@ -99,14 +107,14 @@ class TimetableController {
             if (periodRows.length === 0) return res.status(400).json({ message: `Period not found for shift: ${shift} and day: ${periodDay}.` });
             const period_id = periodRows[0].id;
 
-            // ✅ 5. TEACHER CONFLICT CHECK (FIXED: s.semester -> t.semester)
+            // ✅ 5. TEACHER CONFLICT CHECK (In target session)
             const [teacherConflict] = await db.promise().query(
                 `SELECT t.id, u.name AS teacher_name, t.semester, d.dept_name 
                  FROM timetable t
                  JOIN users u ON t.teacher_id = u.id
                  JOIN departments d ON t.department_id = d.id
-                 WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ?`,
-                [teacher_id, day, period_id]
+                 WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ? AND t.session_id = ?`,
+                [teacher_id, day, period_id, targetSessionId]
             );
 
             if (teacherConflict.length > 0) {
@@ -116,13 +124,13 @@ class TimetableController {
                 });
             }
 
-            // ✅ 6. ROOM CONFLICT CHECK
+            // ✅ 6. ROOM CONFLICT CHECK (In target session)
             const [roomConflict] = await db.promise().query(
                 `SELECT t.id, r.room_no 
                  FROM timetable t
                  JOIN rooms r ON t.room_id = r.id
-                 WHERE t.room_id = ? AND t.day = ? AND t.period_id = ?`,
-                [room_id, day, period_id]
+                 WHERE t.room_id = ? AND t.day = ? AND t.period_id = ? AND t.session_id = ?`,
+                [room_id, day, period_id, targetSessionId]
             );
 
             if (roomConflict.length > 0) {
@@ -132,8 +140,17 @@ class TimetableController {
                 });
             }
 
-            // ✅ 7. Insert Record
-            const id = await timetableModel.create({ department_id, semester, day, period_id, teacher_id, subject_code, room_id });
+            // ✅ 7. Insert Record with session_id
+            const id = await timetableModel.create({ 
+                session_id: targetSessionId,
+                department_id, 
+                semester, 
+                day, 
+                period_id, 
+                teacher_id, 
+                subject_code, 
+                room_id 
+            });
             res.status(201).json({ message: "Class added to timetable", id });
         } catch (error) {
             // Yeh exact error batayega ke database mein kya masla hai
@@ -172,12 +189,15 @@ class TimetableController {
             );
             const period_id = periodRows.length > 0 ? periodRows[0].id : null;
 
+            const [currentRecord] = await db.promise().query("SELECT session_id FROM timetable WHERE id = ?", [timetableId]);
+            const targetSessionId = currentRecord.length > 0 ? currentRecord[0].session_id : 1;
+
             if (teacher_id && day && period_id) {
                 const [teacherConflict] = await db.promise().query(
                     `SELECT t.id, u.name AS teacher_name, p.start_time, p.end_time FROM timetable t
                      JOIN users u ON t.teacher_id = u.id JOIN periods p ON t.period_id = p.id
-                     WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ? AND t.id != ?`, 
-                    [teacher_id, day, period_id, semester, timetableId]
+                     WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ? AND t.id != ? AND t.session_id = ?`, 
+                    [teacher_id, day, period_id, semester, timetableId, targetSessionId]
                 );
                 if (teacherConflict.length > 0) {
                     return res.status(400).json({ message: "Teacher already has a class at this time", conflict: { teacher_name: teacherConflict[0].teacher_name, time: `${teacherConflict[0].start_time} - ${teacherConflict[0].end_time}` } });
@@ -188,8 +208,8 @@ class TimetableController {
                 const [roomConflict] = await db.promise().query(
                     `SELECT t.id, r.room_no, p.start_time, p.end_time FROM timetable t
                      JOIN rooms r ON t.room_id = r.id JOIN periods p ON t.period_id = p.id
-                     WHERE t.room_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ? AND t.id != ?`, 
-                    [room_id, day, period_id, semester, timetableId]
+                     WHERE t.room_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ? AND t.id != ? AND t.session_id = ?`, 
+                    [room_id, day, period_id, semester, timetableId, targetSessionId]
                 );
                 if (roomConflict.length > 0) {
                     return res.status(400).json({ message: "Room is already booked at this time", conflict: { room_no: roomConflict[0].room_no, time: `${roomConflict[0].start_time} - ${roomConflict[0].end_time}` } });

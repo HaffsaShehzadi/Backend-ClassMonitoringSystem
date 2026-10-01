@@ -20,49 +20,74 @@ class TimetableModel {
         return rows[0];
     }
 
-    async getByDayAndShift(day, shift) {
-        const sql = `
+    async getByDayAndShift(day, shift, sessionId = null) {
+        let sql = `
             SELECT t.*, 
                    d.dept_name,
                    r.room_no,
                    p.period_number, p.start_time, p.end_time,
-                   u.name AS teacher_name
+                   u.name AS teacher_name,
+                   s.session_name
             FROM timetable t
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
             JOIN users u ON t.teacher_id = u.id
+            LEFT JOIN sessions s ON t.session_id = s.id
             WHERE t.day = ? AND p.shift = ?
-            ORDER BY p.period_number
         `;
-        const [rows] = await db.promise().query(sql, [day, shift]);
+        const params = [day, shift];
+        if (sessionId) {
+            sql += ` AND t.session_id = ?`;
+            params.push(sessionId);
+        } else {
+            sql += ` AND t.session_id = (SELECT id FROM sessions WHERE is_active = 1 LIMIT 1)`;
+        }
+        sql += ` ORDER BY p.period_number`;
+        const [rows] = await db.promise().query(sql, params);
         return rows;
     }
 
-        async getAll() {
-        const sql = `
+    async getAll(sessionId = null) {
+        let sql = `
             SELECT t.*,
                    d.dept_name, r.room_no,
                    p.period_number, p.start_time, p.end_time, p.shift, 
-                   u.name AS teacher_name
+                   u.name AS teacher_name,
+                   s.session_name
             FROM timetable t
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
             JOIN users u ON t.teacher_id = u.id
-            ORDER BY t.day, p.period_number
+            LEFT JOIN sessions s ON t.session_id = s.id
         `;
-        const [rows] = await db.promise().query(sql);
+        const params = [];
+        if (sessionId) {
+            sql += ` WHERE t.session_id = ?`;
+            params.push(sessionId);
+        } else {
+            sql += ` WHERE t.session_id = (SELECT id FROM sessions WHERE is_active = 1 LIMIT 1)`;
+        }
+        sql += ` ORDER BY t.day, p.period_number`;
+        const [rows] = await db.promise().query(sql, params);
         return rows;
     }
 
     async create(data) {
+        let sessionId = data.session_id;
+        if (!sessionId) {
+            const [active] = await db.promise().query("SELECT id FROM sessions WHERE is_active = 1 LIMIT 1");
+            sessionId = active.length > 0 ? active[0].id : 1;
+        }
+
         const sql = `
             INSERT INTO timetable
-            (department_id, semester, day, period_id, teacher_id, subject_code, room_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (session_id, department_id, semester, day, period_id, teacher_id, subject_code, room_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const [result] = await db.promise().query(sql, [
+            sessionId,
             data.department_id,
             data.semester,
             data.day,
