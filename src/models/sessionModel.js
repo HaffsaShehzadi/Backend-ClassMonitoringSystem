@@ -121,9 +121,8 @@ class SessionModel {
             WHERE \`session_id\` IS NULL OR \`session_id\` = 0;
         `);
 
-        console.log("✅ Academic Sessions table & Session 2026 Winter verified in Database!");
     } catch (err) {
-        console.error("⚠️ Sessions init notice:", err.message);
+        // Silently handled on server start
     }
 })();
 
