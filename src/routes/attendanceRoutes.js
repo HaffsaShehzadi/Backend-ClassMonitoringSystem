@@ -1,10 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-// Controller ko import karein
 const attendanceController = require("../controllers/attendanceController");
-
-// Middleware (agar aapke paas hai, warna hata sakte hain)
 const verifyToken = require("../middleware/authMiddleware"); 
 
 // 1. Mark Attendance
