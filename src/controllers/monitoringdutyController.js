@@ -66,7 +66,6 @@ class MonitoringDutyController {
         }
     }
     // GET /api/monitoring-duty/my-duty
-        // GET /api/monitoring-duty/my-duty
     async getMyDuty(req, res) {
         try {
             const { date, shift } = req.query;

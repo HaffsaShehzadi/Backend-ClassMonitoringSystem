@@ -42,7 +42,7 @@ const fs = require("fs");
 const publicPath = path.join(__dirname, "public");
 if (fs.existsSync(publicPath)) {
     app.use(express.static(publicPath));
-    app.get("*", (req, res, next) => {
+    app.use((req, res, next) => {
         if (req.path.startsWith("/api")) return next();
         res.sendFile(path.join(publicPath, "index.html"));
     });
