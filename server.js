@@ -3,14 +3,14 @@ const cors = require("cors");
 require("dotenv").config();
 require("./Database");
 
-// ✅ 1. Sab se pehle 'app' ko initialize karein (Error yahan se fix hua)
+// Express app initialization
 const app = express();
 
-// ✅ 2. Phir Middlewares lagayein
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// ✅ 3. Phir Routes import karein
+// Routes
 const authRoutes = require("./src/routes/authRoutes");
 const timetableRoutes = require("./src/routes/timetableRoutes");
 const attendanceRoutes = require("./src/routes/attendanceRoutes");
@@ -38,7 +38,7 @@ app.use("/api/departments", departmentRoutes);
 const path = require("path");
 const fs = require("fs");
 
-// ✅ Web Frontend Static Serving (agar public/ folder majood ho)
+// Serve frontend build if public folder exists
 const publicPath = path.join(__dirname, "public");
 if (fs.existsSync(publicPath)) {
     app.use(express.static(publicPath));

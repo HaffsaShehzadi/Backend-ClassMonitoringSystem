@@ -1,25 +1,24 @@
 const express = require("express");
 const router = express.Router();
-
 const attendanceController = require("../controllers/attendanceController");
-const verifyToken = require("../middleware/authMiddleware"); 
+const verifyToken = require("../middleware/authMiddleware");
 
-// 1. Mark Attendance
+// Mark attendance
 router.post("/mark", verifyToken, attendanceController.markAttendance);
 
-// 2. Sync Offline Attendance
+// Sync offline attendance records
 router.post("/sync-offline", verifyToken, attendanceController.syncOfflineAttendance);
 
-// 3. Get Today's Attendance
+// Get today's attendance
 router.get("/today", verifyToken, attendanceController.getTodayAttendance);
 
-// 4. Get Teacher History
+// Get teacher attendance history
 router.get("/my-history", verifyToken, attendanceController.getTeacherHistory);
 
-// 5. Get MO History
+// Get monitoring official history
 router.get("/mo-history", verifyToken, attendanceController.getMOHistory);
 
-// 6. Update Attendance
+// Update attendance record
 router.put("/update/:id", verifyToken, attendanceController.updateAttendance);
 
 module.exports = router;

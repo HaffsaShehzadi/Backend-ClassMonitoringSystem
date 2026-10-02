@@ -47,7 +47,7 @@ class AuthModel {
         return rows[0];
     }
 
-    // 3. ✅ FIXED: Sirf existing department ka ID lao, naya mat banao
+    // Department ID fetch karne ke liye
     async getDepartmentId(deptName) {
         if (!deptName) return null;
         

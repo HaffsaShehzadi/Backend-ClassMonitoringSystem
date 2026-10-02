@@ -10,12 +10,12 @@ class ReportModel {
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
-            LEFT JOIN users mo ON a.marked_by = mo.id       /* ✅ FIX: LEFT JOIN */
+            LEFT JOIN users mo ON a.marked_by = mo.id
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
             WHERE t.department_id = ? 
-              AND DATE(a.date) >= ? AND DATE(a.date) <= ?   /* ✅ FIX: DATE() function */
+              AND DATE(a.date) >= ? AND DATE(a.date) <= ?
             ORDER BY a.date DESC, p.period_number ASC
         `;
         const [rows] = await db.promise().query(sql, [departmentId, startDate, endDate]);
@@ -33,12 +33,12 @@ class ReportModel {
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
-            LEFT JOIN users mo ON a.marked_by = mo.id       /* ✅ FIX: LEFT JOIN */
+            LEFT JOIN users mo ON a.marked_by = mo.id
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
             WHERE t.teacher_id = ? 
-              AND DATE(a.date) >= ? AND DATE(a.date) <= ?   /* ✅ FIX: DATE() function */
+              AND DATE(a.date) >= ? AND DATE(a.date) <= ?
             ORDER BY a.date DESC, p.period_number ASC
         `;
         const [rows] = await db.promise().query(sql, [teacherId, startDate, endDate]);
@@ -55,11 +55,11 @@ class ReportModel {
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
-            LEFT JOIN users mo ON a.marked_by = mo.id       /* ✅ FIX: LEFT JOIN */
+            LEFT JOIN users mo ON a.marked_by = mo.id
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
-            WHERE a.marked_by = ? AND DATE(a.date) = ?      /* ✅ FIX: DATE() function */
+            WHERE a.marked_by = ? AND DATE(a.date) = ?
         `;
         let params = [moId, date];
 

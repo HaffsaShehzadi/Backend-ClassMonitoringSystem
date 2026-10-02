@@ -1,23 +1,22 @@
 const express = require("express");
 const router = express.Router();
-
 const verifyToken = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const sessionController = require("../controllers/sessionController");
 
-// GET /api/sessions/active (Available for any authenticated user)
+// Get active academic session
 router.get("/active", verifyToken, sessionController.getActive);
 
-// GET /api/sessions (Admin view all sessions)
+// Get all academic sessions (Admin)
 router.get("/", verifyToken, roleMiddleware.authorize("admin"), sessionController.getAll);
 
-// POST /api/sessions (Admin create new session)
+// Create new academic session (Admin)
 router.post("/", verifyToken, roleMiddleware.authorize("admin"), sessionController.create);
 
-// PUT /api/sessions/:id/activate (Admin activate session)
+// Set active academic session (Admin)
 router.put("/:id/activate", verifyToken, roleMiddleware.authorize("admin"), sessionController.setActive);
 
-// DELETE /api/sessions/:id (Admin delete empty session)
+// Delete empty academic session (Admin)
 router.delete("/:id", verifyToken, roleMiddleware.authorize("admin"), sessionController.delete);
 
 module.exports = router;

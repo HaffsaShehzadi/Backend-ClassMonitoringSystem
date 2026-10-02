@@ -167,7 +167,7 @@ class TimetableController {
 
     async update(req, res) {
         try {
-            // ✅ FIXED: shift ko bhi extract karein
+            // Request body se fields extract karein
             const { teacher_name, room_no, department_name, subject_code, semester, day, period_number, shift } = req.body;
             const timetableId = req.params.id;
 
@@ -180,7 +180,7 @@ class TimetableController {
             const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
             const department_id = deptRows.length > 0 ? deptRows[0].id : null;
 
-            // ✅ FIXED: Database mein Monday-Thursday ke liye 'Regular' save hota hai
+            // Day type: Friday ya Regular
             const periodDay = day === 'Friday' ? 'Friday' : 'Regular';
 
             const [periodRows] = await db.promise().query(
@@ -232,7 +232,7 @@ class TimetableController {
         }
     }
 
-    // ✅ FIXED: getConfig function jo double AM/PM ko hamesha ke liye rok dega
+    // Timetable configuration (departments, semesters, periods)
     async getConfig(req, res) {
         try {
             const [depts] = await db.promise().query("SELECT DISTINCT dept_name as name FROM departments ORDER BY dept_name");
@@ -332,7 +332,7 @@ class TimetableController {
         }
     }
 
-    // ✅ FIXED: Period Add karna (Time ko 24-hour format mein convert kar ke bhejega)
+    // Period add karna
     async addPeriod(req, res) {
         try {
             const { id, start_time, end_time, shift, day = 'Regular' } = req.body;
@@ -343,7 +343,7 @@ class TimetableController {
             const dbStartTime = parseTimeTo24Hour(start_time);
             const dbEndTime = parseTimeTo24Hour(end_time);
 
-            console.log("📥 Adding Period (Converted):", { id, start_time: dbStartTime, end_time: dbEndTime, shift: finalShift, day: finalDay });
+            console.log("Adding Period:", { id, start_time: dbStartTime, end_time: dbEndTime, shift: finalShift, day: finalDay });
 
             await db.promise().query(
                 "INSERT INTO periods (period_number, start_time, end_time, shift, day) VALUES (?, ?, ?, ?, ?)", 
@@ -351,12 +351,12 @@ class TimetableController {
             );
             res.status(201).json({ message: "Period added successfully" });
         } catch (error) {
-            console.error("❌ ADD PERIOD ERROR:", error.message);
+            console.error("ADD PERIOD ERROR:", error.message);
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
 
-    // ✅ FIXED: Period Update karna (Time ko 24-hour format mein convert kar ke bhejega)
+    // Period update karna
     async updatePeriod(req, res) {
         try {
             const { id, start_time, end_time, shift, day = 'Regular' } = req.body;
