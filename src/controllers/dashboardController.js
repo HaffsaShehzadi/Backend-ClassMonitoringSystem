@@ -54,5 +54,19 @@ class DashboardController {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
+
+    // DELETE /api/dashboard/rejected/:id
+    async deleteRejectedUser(req, res) {
+        try {
+            await dashboardModel.deleteRejectedUser(req.params.id);
+            res.json({ message: "User deleted permanently from the system." });
+        } catch (error) {
+            console.error("Delete Rejected User Error:", error.message);
+            if (error.message === "User not found") {
+                return res.status(404).json({ message: "User not found" });
+            }
+            res.status(500).json({ message: "Server error while deleting user", error: error.message });
+        }
+    }
 }
 module.exports = new DashboardController();

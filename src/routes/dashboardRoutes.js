@@ -39,4 +39,11 @@ router.get(
     dashboardController.getRejectedUsers
 );
 
+router.delete(
+    "/rejected/:id",
+    verifyToken,
+    roleMiddleware.authorize("admin"),
+    dashboardController.deleteRejectedUser
+);
+
 module.exports = router;

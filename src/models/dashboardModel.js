@@ -53,5 +53,11 @@ class DashboardModel {
         const [rows] = await db.promise().query(sql);
         return rows;
     }
+
+    // Admin rejected user ko permanently DELETE karta hai
+    async deleteRejectedUser(userId) {
+        const userModel = require("./userModel");
+        await userModel.deleteUser(userId);
+    }
 }
 module.exports = new DashboardModel();
