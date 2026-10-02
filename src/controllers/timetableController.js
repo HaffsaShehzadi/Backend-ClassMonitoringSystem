@@ -1,5 +1,4 @@
 const timetableModel = require("../models/timetableModel");
-const db = require("../../Database");
 
 // ✅ HELPER FUNCTION: 12-hour (AM/PM) ko MySQL ke 24-hour (HH:MM:SS) format mein badalne ke liye
 const parseTimeTo24Hour = (timeStr) => {
@@ -73,70 +72,51 @@ class TimetableController {
             // 0. Determine target session_id
             let targetSessionId = session_id ? parseInt(session_id, 10) : null;
             if (!targetSessionId) {
-                const [activeSessions] = await db.promise().query("SELECT id FROM sessions WHERE is_active = 1 LIMIT 1");
-                targetSessionId = activeSessions.length > 0 ? activeSessions[0].id : 1;
+                targetSessionId = await timetableModel.getActiveSessionId();
             }
 
             // 1. Teacher ID dhundna
-            const [teacherRows] = await db.promise().query("SELECT id FROM users WHERE name = ? AND role = 'teacher'", [teacher_name]);
-            if (teacherRows.length === 0) return res.status(400).json({ message: "Teacher not found." });
-            const teacher_id = teacherRows[0].id;
+            const teacher = await timetableModel.findTeacherByName(teacher_name);
+            if (!teacher) return res.status(400).json({ message: "Teacher not found." });
+            const teacher_id = teacher.id;
 
             // 2. Room ID dhundna (Trim kar ke check karein taake space ka masla na ho)
             const cleanRoomNo = room_no.trim();
-            const [roomRows] = await db.promise().query("SELECT id FROM rooms WHERE room_no = ?", [cleanRoomNo]);
-            if (roomRows.length === 0) {
+            const room = await timetableModel.findRoomByNo(cleanRoomNo);
+            if (!room) {
                 return res.status(400).json({ 
                     message: `Room '${cleanRoomNo}' not found in database. Please add the room first.`,
                     hint: "Check rooms table in database."
                 }); 
             }
-            const room_id = roomRows[0].id;
+            const room_id = room.id;
 
             // 3. Department ID dhundna
-            const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
-            if (deptRows.length === 0) return res.status(400).json({ message: "Department not found." });
-            const department_id = deptRows[0].id;
+            const dept = await timetableModel.findDepartmentByName(department_name);
+            if (!dept) return res.status(400).json({ message: "Department not found." });
+            const department_id = dept.id;
 
             // 4. Period ID dhundna (Shift aur Day ke sath)
             const periodDay = day === 'Friday' ? 'Friday' : 'Regular';
-            const [periodRows] = await db.promise().query(
-                "SELECT id FROM periods WHERE period_number = ? AND shift = ? AND day = ?", 
-                [period_number, shift, periodDay]
-            );
-            if (periodRows.length === 0) return res.status(400).json({ message: `Period not found for shift: ${shift} and day: ${periodDay}.` });
-            const period_id = periodRows[0].id;
+            const period = await timetableModel.findPeriod(period_number, shift, day);
+            if (!period) return res.status(400).json({ message: `Period not found for shift: ${shift} and day: ${periodDay}.` });
+            const period_id = period.id;
 
             // ✅ 5. TEACHER CONFLICT CHECK (In target session)
-            const [teacherConflict] = await db.promise().query(
-                `SELECT t.id, u.name AS teacher_name, t.semester, d.dept_name 
-                 FROM timetable t
-                 JOIN users u ON t.teacher_id = u.id
-                 JOIN departments d ON t.department_id = d.id
-                 WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ? AND t.session_id = ?`,
-                [teacher_id, day, period_id, targetSessionId]
-            );
-
-            if (teacherConflict.length > 0) {
+            const teacherConflict = await timetableModel.checkTeacherConflict(teacher_id, day, period_id, targetSessionId);
+            if (teacherConflict) {
                 return res.status(400).json({ 
-                    message: `${teacher_name} is already has class in ${teacherConflict[0].semester} Sem (${teacherConflict[0].dept_name}).`,
-                    conflict: teacherConflict[0]
+                    message: `${teacher_name} is already has class in ${teacherConflict.semester} Sem (${teacherConflict.dept_name}).`,
+                    conflict: teacherConflict
                 });
             }
 
             // ✅ 6. ROOM CONFLICT CHECK (In target session)
-            const [roomConflict] = await db.promise().query(
-                `SELECT t.id, r.room_no 
-                 FROM timetable t
-                 JOIN rooms r ON t.room_id = r.id
-                 WHERE t.room_id = ? AND t.day = ? AND t.period_id = ? AND t.session_id = ?`,
-                [room_id, day, period_id, targetSessionId]
-            );
-
-            if (roomConflict.length > 0) {
+            const roomConflict = await timetableModel.checkRoomConflict(room_id, day, period_id, targetSessionId);
+            if (roomConflict) {
                 return res.status(400).json({ 
                     message: `Room Conflict! Room ${room_no} is already booked during this period.`,
-                    conflict: roomConflict[0]
+                    conflict: roomConflict
                 });
             }
 
@@ -153,7 +133,6 @@ class TimetableController {
             });
             res.status(201).json({ message: "Class added to timetable", id });
         } catch (error) {
-            // Yeh exact error batayega ke database mein kya masla hai
             console.error("========================================");
             console.error("❌❌ CREATE CRASH DETAILS ❌❌");
             console.error("Error Message:", error.message);
@@ -167,52 +146,50 @@ class TimetableController {
 
     async update(req, res) {
         try {
-            // ✅ FIXED: shift ko bhi extract karein
             const { teacher_name, room_no, department_name, subject_code, semester, day, period_number, shift } = req.body;
             const timetableId = req.params.id;
 
-            const [teacherRows] = await db.promise().query("SELECT id FROM users WHERE name = ? AND role = 'teacher'", [teacher_name]);
-            const teacher_id = teacherRows.length > 0 ? teacherRows[0].id : null;
+            const teacher = teacher_name ? await timetableModel.findTeacherByName(teacher_name) : null;
+            const teacher_id = teacher ? teacher.id : null;
 
-            const [roomRows] = await db.promise().query("SELECT id FROM rooms WHERE room_no = ?", [room_no]);
-            const room_id = roomRows.length > 0 ? roomRows[0].id : null;
+            const room = room_no ? await timetableModel.findRoomByNo(room_no) : null;
+            const room_id = room ? room.id : null;
 
-            const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
-            const department_id = deptRows.length > 0 ? deptRows[0].id : null;
+            const dept = department_name ? await timetableModel.findDepartmentByName(department_name) : null;
+            const department_id = dept ? dept.id : null;
 
-            // ✅ FIXED: Database mein Monday-Thursday ke liye 'Regular' save hota hai
-            const periodDay = day === 'Friday' ? 'Friday' : 'Regular';
+            const period = await timetableModel.findPeriod(period_number, shift, day);
+            const period_id = period ? period.id : null;
 
-            const [periodRows] = await db.promise().query(
-                "SELECT id FROM periods WHERE period_number = ? AND shift = ? AND day = ?", 
-                [period_number, shift, periodDay]
-            );
-            const period_id = periodRows.length > 0 ? periodRows[0].id : null;
-
-            const [currentRecord] = await db.promise().query("SELECT session_id FROM timetable WHERE id = ?", [timetableId]);
-            const targetSessionId = currentRecord.length > 0 ? currentRecord[0].session_id : 1;
+            const targetSessionId = await timetableModel.getSessionIdForTimetable(timetableId);
 
             if (teacher_id && day && period_id) {
-                const [teacherConflict] = await db.promise().query(
-                    `SELECT t.id, u.name AS teacher_name, p.start_time, p.end_time FROM timetable t
-                     JOIN users u ON t.teacher_id = u.id JOIN periods p ON t.period_id = p.id
-                     WHERE t.teacher_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ? AND t.id != ? AND t.session_id = ?`, 
-                    [teacher_id, day, period_id, semester, timetableId, targetSessionId]
+                const teacherConflict = await timetableModel.checkTeacherUpdateConflict(
+                    teacher_id, day, period_id, semester, timetableId, targetSessionId
                 );
-                if (teacherConflict.length > 0) {
-                    return res.status(400).json({ message: "Teacher already has a class at this time", conflict: { teacher_name: teacherConflict[0].teacher_name, time: `${teacherConflict[0].start_time} - ${teacherConflict[0].end_time}` } });
+                if (teacherConflict) {
+                    return res.status(400).json({ 
+                        message: "Teacher already has a class at this time", 
+                        conflict: { 
+                            teacher_name: teacherConflict.teacher_name, 
+                            time: `${teacherConflict.start_time} - ${teacherConflict.end_time}` 
+                        } 
+                    });
                 }
             }
 
             if (room_id && day && period_id) {
-                const [roomConflict] = await db.promise().query(
-                    `SELECT t.id, r.room_no, p.start_time, p.end_time FROM timetable t
-                     JOIN rooms r ON t.room_id = r.id JOIN periods p ON t.period_id = p.id
-                     WHERE t.room_id = ? AND t.day = ? AND t.period_id = ? AND t.semester = ? AND t.id != ? AND t.session_id = ?`, 
-                    [room_id, day, period_id, semester, timetableId, targetSessionId]
+                const roomConflict = await timetableModel.checkRoomUpdateConflict(
+                    room_id, day, period_id, semester, timetableId, targetSessionId
                 );
-                if (roomConflict.length > 0) {
-                    return res.status(400).json({ message: "Room is already booked at this time", conflict: { room_no: roomConflict[0].room_no, time: `${roomConflict[0].start_time} - ${roomConflict[0].end_time}` } });
+                if (roomConflict) {
+                    return res.status(400).json({ 
+                        message: "Room is already booked at this time", 
+                        conflict: { 
+                            room_no: roomConflict.room_no, 
+                            time: `${roomConflict.start_time} - ${roomConflict.end_time}` 
+                        } 
+                    });
                 }
             }
 
@@ -235,21 +212,12 @@ class TimetableController {
     // ✅ FIXED: getConfig function jo double AM/PM ko hamesha ke liye rok dega
     async getConfig(req, res) {
         try {
-            const [depts] = await db.promise().query("SELECT DISTINCT dept_name as name FROM departments ORDER BY dept_name");
-            const [configSems] = await db.promise().query("SELECT name FROM timetable_config WHERE config_type = 'semester'");
-            const [periods] = await db.promise().query("SELECT id, period_number, start_time, end_time, shift, day FROM periods ORDER BY period_number");
+            const depts = await timetableModel.getAllDepartments();
+            const configSems = await timetableModel.getConfigSemesters();
+            const periods = await timetableModel.getAllPeriods();
 
-            const departments = depts.map(d => d.name).length > 0 ? depts.map(d => d.name) : ['IT', 'BSCS', 'Math', 'Physics', 'English', 'Urdu', 'Islamiat', 'Zoology', 'Economics', 'Political Science', 'Chemistry'];
-            
-            let allSems = configSems.map(c => c.name).filter(Boolean);
-            if (allSems.length === 0) {
-                allSems = ['2nd', '4th', '6th', '8th'];
-                for (const sem of allSems) {
-                    await db.promise().query("INSERT IGNORE INTO timetable_config (config_type, name) VALUES ('semester', ?)", [sem]);
-                }
-            } else {
-                allSems = allSems.sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
-            }
+            const departments = depts.length > 0 ? depts : ['IT', 'BSCS', 'Math', 'Physics', 'English', 'Urdu', 'Islamiat', 'Zoology', 'Economics', 'Political Science', 'Chemistry'];
+            const allSems = configSems;
 
             const formattedPeriods = periods.map(p => {
                 const cleanTime = (timeStr) => {
@@ -296,10 +264,10 @@ class TimetableController {
         try {
             const { name } = req.body;
             if (!name) return res.status(400).json({ message: "Semester name is required" });
-            const [existing] = await db.promise().query("SELECT id FROM timetable_config WHERE config_type = 'semester' AND name = ?", [name]);
-            if (existing.length > 0) return res.status(400).json({ message: "Semester already exists" });
+            const existing = await timetableModel.findSemesterByName(name);
+            if (existing) return res.status(400).json({ message: "Semester already exists" });
             
-            await db.promise().query("INSERT INTO timetable_config (config_type, name) VALUES ('semester', ?)", [name]);
+            await timetableModel.addSemester(name);
             res.status(201).json({ message: "Semester added successfully", name });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -310,7 +278,7 @@ class TimetableController {
         try {
             const { name } = req.body;
             if (!name) return res.status(400).json({ message: "Semester name is required" });
-            await db.promise().query("DELETE FROM timetable_config WHERE config_type = 'semester' AND name = ?", [name]);
+            await timetableModel.removeSemester(name);
             res.json({ message: "Semester removed successfully", name });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -322,10 +290,10 @@ class TimetableController {
             const { oldName, newName } = req.body;
             if (!oldName || !newName) return res.status(400).json({ message: "oldName and newName are required" });
             
-            const [existing] = await db.promise().query("SELECT id FROM timetable_config WHERE config_type = 'semester' AND name = ?", [newName]);
-            if (existing.length > 0) return res.status(400).json({ message: "New semester name already exists" });
+            const existing = await timetableModel.findSemesterByName(newName);
+            if (existing) return res.status(400).json({ message: "New semester name already exists" });
             
-            await db.promise().query("UPDATE timetable_config SET name = ? WHERE config_type = 'semester' AND name = ?", [newName, oldName]);
+            await timetableModel.renameSemester(oldName, newName);
             res.json({ message: "Semester renamed successfully", oldName, newName });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
@@ -345,10 +313,13 @@ class TimetableController {
 
             console.log("📥 Adding Period (Converted):", { id, start_time: dbStartTime, end_time: dbEndTime, shift: finalShift, day: finalDay });
 
-            await db.promise().query(
-                "INSERT INTO periods (period_number, start_time, end_time, shift, day) VALUES (?, ?, ?, ?, ?)", 
-                [id, dbStartTime, dbEndTime, finalShift, finalDay]
-            );
+            await timetableModel.addPeriod({
+                period_number: id,
+                start_time: dbStartTime,
+                end_time: dbEndTime,
+                shift: finalShift,
+                day: finalDay
+            });
             res.status(201).json({ message: "Period added successfully" });
         } catch (error) {
             console.error("❌ ADD PERIOD ERROR:", error.message);
@@ -369,10 +340,12 @@ class TimetableController {
 
             console.log("📥 Updating Period (Converted):", { id, start_time: dbStartTime, end_time: dbEndTime, shift: finalShift, day: finalDay });
 
-            await db.promise().query(
-                "UPDATE periods SET start_time = ?, end_time = ?, shift = ?, day = ? WHERE id = ?", 
-                [dbStartTime, dbEndTime, finalShift, finalDay, id]
-            );
+            await timetableModel.updatePeriod(id, {
+                start_time: dbStartTime,
+                end_time: dbEndTime,
+                shift: finalShift,
+                day: finalDay
+            });
             res.json({ message: "Period updated successfully" });
         } catch (error) {
             console.error("❌ UPDATE PERIOD ERROR:", error.message);
@@ -383,7 +356,7 @@ class TimetableController {
     async deletePeriod(req, res) {
         try {
             const { id } = req.params;
-            await db.promise().query("DELETE FROM periods WHERE id = ?", [id]);
+            await timetableModel.deletePeriod(id);
             res.json({ message: "Period deleted successfully" });
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
