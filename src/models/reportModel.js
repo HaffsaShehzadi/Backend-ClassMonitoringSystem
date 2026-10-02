@@ -1,8 +1,6 @@
-const db = require("../../Database"); // Apne database config ke mutabiq path adjust karein
-
 class ReportModel {
 
-    // Get attendance by department (with date range)
+    // 1. Get attendance by department (with date range)
     async getDepartmentAttendance(departmentId, startDate, endDate) {
         const sql = `
             SELECT 
@@ -12,19 +10,19 @@ class ReportModel {
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
-            JOIN users mo ON a.marked_by = mo.id
+            LEFT JOIN users mo ON a.marked_by = mo.id       /* ✅ FIX: LEFT JOIN */
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
             WHERE t.department_id = ? 
-              AND a.date >= ? AND a.date <= ?
+              AND DATE(a.date) >= ? AND DATE(a.date) <= ?   /* ✅ FIX: DATE() function */
             ORDER BY a.date DESC, p.period_number ASC
         `;
         const [rows] = await db.promise().query(sql, [departmentId, startDate, endDate]);
         return rows;
     }
 
-    // Get specific teacher's attendance history (with date range)
+    // 2. Get specific teacher's attendance history (with date range)
     async getTeacherAttendance(teacherId, startDate, endDate) {
         const sql = `
             SELECT 
@@ -35,19 +33,19 @@ class ReportModel {
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
-            JOIN users mo ON a.marked_by = mo.id
+            LEFT JOIN users mo ON a.marked_by = mo.id       /* ✅ FIX: LEFT JOIN */
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
             WHERE t.teacher_id = ? 
-              AND a.date >= ? AND a.date <= ?
+              AND DATE(a.date) >= ? AND DATE(a.date) <= ?   /* ✅ FIX: DATE() function */
             ORDER BY a.date DESC, p.period_number ASC
         `;
         const [rows] = await db.promise().query(sql, [teacherId, startDate, endDate]);
         return rows;
     }
 
-    // Get MO's marked history (MO can only see what they marked on a specific date & dept)
+    // 3. Get MO's marked history
     async getMOHistory(moId, date, departmentId) {
         let sql = `
             SELECT 
@@ -57,15 +55,14 @@ class ReportModel {
             FROM attendance a
             JOIN timetable t ON a.timetable_id = t.id
             JOIN users u ON t.teacher_id = u.id
-            JOIN users mo ON a.marked_by = mo.id
+            LEFT JOIN users mo ON a.marked_by = mo.id       /* ✅ FIX: LEFT JOIN */
             JOIN departments d ON t.department_id = d.id
             JOIN rooms r ON t.room_id = r.id
             JOIN periods p ON t.period_id = p.id
-            WHERE a.marked_by = ? AND a.date = ?
+            WHERE a.marked_by = ? AND DATE(a.date) = ?      /* ✅ FIX: DATE() function */
         `;
         let params = [moId, date];
 
-        // Agar frontend department_id bhej raha hai, toh us se bhi filter karein
         if (departmentId) {
             sql += ` AND t.department_id = ?`;
             params.push(departmentId);
@@ -77,5 +74,3 @@ class ReportModel {
         return rows;
     }
 }
-
-module.exports = new ReportModel();

@@ -173,22 +173,30 @@ class ReportController {
         }
     }
 
-    // GET /api/reports/teacher/:teacher_id
+        // GET /api/reports/teacher/:teacher_id
     async getTeacherAttendance(req, res) {
         try {
             const requestedTeacherId = req.params.teacher_id;
             const { startDate, endDate } = req.query; 
             
+            // ✅ SECURITY CHECK: Agar user teacher hai, toh wo sirf apna hi ID dekh sakta hai
+            if (req.user.role === 'teacher' && req.user.user_id != requestedTeacherId) {
+                return res.status(403).json({ message: "Forbidden: You can only view your own attendance history." });
+            }
+
             if (!startDate || !endDate) {
                 return res.status(400).json({ message: "Start date and end date are required" });
             }
 
             const rows = await reportModel.getTeacherAttendance(requestedTeacherId, startDate, endDate);
+            
+            // Deduplication (Safety net)
             const uniqueMap = new Map();
             (rows || []).forEach(r => {
                 const key = `${r.date}_${r.dept}_${r.sem}_${r.period}_${r.teacher}_${r.code}`;
                 if (!uniqueMap.has(key)) uniqueMap.set(key, r);
             });
+            
             res.status(200).json(Array.from(uniqueMap.values()));
         } catch (error) {
             res.status(500).json({ message: "Server error", error: error.message });
