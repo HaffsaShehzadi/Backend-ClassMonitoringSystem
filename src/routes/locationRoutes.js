@@ -2,27 +2,21 @@ const express = require("express");
 const router = express.Router();
 
 const verifyToken = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
 const locationController = require("../controllers/locationController");
 
-// ============================================
-// Location Routes
-// ============================================
-
-// POST /api/location/update
-// Teacher + Monitoring DONO ye hi route use karte hain
-// verifyToken: login zaroori hai (token se user_id milta hai)
+// ✅ Sirf Monitoring Official (MO) apni live location update kar sakta hai
 router.post(
     "/update",
     verifyToken,
+    roleMiddleware.authorize("monitoring"),
     locationController.updateLocation
 );
-
-// GET /api/location/latest/:userId
-// Kisi user ka latest GPS dekhna (testing ke liye)
+// 2. GET /api/location/latest/:userId
 router.get(
     "/latest/:userId",
     verifyToken,
+    roleMiddleware.authorize("admin", "monitoring"),
     locationController.getLatestLocation
 );
-
 module.exports = router;
