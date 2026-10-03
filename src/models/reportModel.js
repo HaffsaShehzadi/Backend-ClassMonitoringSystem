@@ -2,7 +2,6 @@ const db = require("../../Database");
 
 class ReportModel {
 
-    // 1. Get attendance by department (with date range)
     async getDepartmentAttendance(departmentId, startDate, endDate) {
         const sql = `
             SELECT 
@@ -24,7 +23,6 @@ class ReportModel {
         return rows;
     }
 
-    // 2. Get specific teacher's attendance history (with date range)
     async getTeacherAttendance(teacherId, startDate, endDate) {
         const sql = `
             SELECT 
@@ -47,7 +45,6 @@ class ReportModel {
         return rows;
     }
 
-    // 3. Get MO's marked history
     async getMOHistory(moId, date, departmentId) {
         let sql = `
             SELECT 

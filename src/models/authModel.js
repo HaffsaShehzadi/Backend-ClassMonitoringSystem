@@ -1,9 +1,7 @@
 const db = require("../../Database");
 
-// ✅ Class ka naam AuthModel rakha hai taake confusion na ho
 class AuthModel {
 
-    // 1. Naya user register karna
     async createUser(userData) {
         const sql = `
             INSERT INTO users (name, email, password, role, department_id, status, email_verified, join_date)
@@ -19,7 +17,6 @@ class AuthModel {
         return result.insertId;
     }
 
-    // 1b. Agar pehle se unverified user ho toh naye details ke sath update karna
     async updateUnverifiedUser(userData) {
         const sql = `
             UPDATE users 
@@ -35,7 +32,6 @@ class AuthModel {
         ]);
     }
 
-    // 2. Email se user dhundo (department name ke saath)
     async findUserByEmail(email) {
         const sql = `
             SELECT u.*, d.dept_name AS department
@@ -47,7 +43,6 @@ class AuthModel {
         return rows[0];
     }
 
-    // Department ID fetch karne ke liye
     async getDepartmentId(deptName) {
         if (!deptName) return null;
         
@@ -56,26 +51,22 @@ class AuthModel {
             [deptName]
         );
         
-        // Agar department mila toh ID return karo, warna null
         if (rows.length > 0) {
             return rows[0].id;
         }
         return null; 
     }
 
-    // 4. Email verified mark karna
     async verifyEmail(email) {
         const sql = `UPDATE users SET email_verified = 1 WHERE email = ?`;
         await db.promise().query(sql, [email]);
     }
 
-    // 5. Password reset token save karna
     async createResetToken(email, token, expiresAt) {
         const sql = `INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)`;
         await db.promise().query(sql, [email, token, expiresAt]);
     }
 
-    // 6. Valid reset token dhundo
     async findValidResetToken(token) {
         const sql = `
             SELECT * FROM password_resets
@@ -86,19 +77,16 @@ class AuthModel {
         return rows[0];
     }
 
-    // 7. User ka password update karna
     async updatePassword(email, hashedPassword) {
         const sql = `UPDATE users SET password = ? WHERE email = ?`;
         await db.promise().query(sql, [hashedPassword, email]);
     }
 
-    // 8. Reset token ko used mark karna
     async markResetTokenUsed(token) {
         const sql = `UPDATE password_resets SET used = 1 WHERE token = ?`;
         await db.promise().query(sql, [token]);
     }
 
-    // 9. OTP create karna
     async createOTP(email) {
         const otp = Math.floor(1000 + Math.random() * 9000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -109,7 +97,6 @@ class AuthModel {
         return otp;
     }
 
-    // 10. OTP verify karna
     async verifyOTP(email, otp) {
         const sql = `
             SELECT id FROM user_otps
@@ -120,12 +107,10 @@ class AuthModel {
         
         if (rows.length === 0) return false;
 
-        // OTP ko used mark karein
         await this.markOTPAsUsed(rows[0].id);
         return true;
     }
 
-    // 11. OTP ko used mark karna
     async markOTPAsUsed(otpId) {
         const sql = `UPDATE user_otps SET used = 1 WHERE id = ?`;
         await db.promise().query(sql, [otpId]);

@@ -5,24 +5,20 @@ const locationService = require("../services/locationService");
 const locationModel = require("../models/locationModel");
 
 class AttendanceController {
-    // 1. POST /api/attendance/mark
     async markAttendance(req, res) {
         try {
             const { timetable_id, status, substitute_teacher_name, latitude, longitude, date } = req.body;
             const moId = req.user.user_id;
 
-            // 1. Basic Validation
             if (!timetable_id || !status) {
                 return res.status(400).json({ message: "timetable_id and status are required" });
             }
 
-            // 2. Timetable Check
             const tt = await timetableModel.getById(timetable_id);
             if (!tt) {
                 return res.status(404).json({ message: "Timetable not found" });
             }
 
-            // 3. TIME CHECK
             const timeCheck = attendanceService.checkTime(tt.start_time, tt.end_time);
             if (!timeCheck.time_verified) {
                 return res.status(400).json({
@@ -32,10 +28,8 @@ class AttendanceController {
                 });
             }
 
-            // 4. MO LOCATION CHECK (Live GPS Verification)
             let moLat = latitude;
             let moLng = longitude;
-            // Fallback: If coordinates not in body, check live_locations
             if (moLat === undefined || moLng === undefined) {
                 const loc = await locationModel.getLatestLocation(moId);
                 if (loc) {
@@ -47,9 +41,8 @@ class AttendanceController {
                 return res.status(400).json({ message: "GPS Location is required to mark attendance" });
             }
 
-            // 5. Verify distance if room coordinates exist in DB
             let distance = 0;
-            let locationVerified = 1; // Default true if no room coords are set in DB  
+            let locationVerified = 1;  
             if (tt.room_lat && tt.room_lng) {
                 distance = locationService.calculateDistance(moLat, moLng, tt.room_lat, tt.room_lng);
                 const allowedRadius = Math.max(tt.radius_meters || 10, 50);
@@ -64,7 +57,6 @@ class AttendanceController {
 
             const today = date || new Date().toISOString().split("T")[0];
 
-            // 6. Check if attendance already marked for this class today via Model (Prevent duplicates!)
             const existingAttendance = await attendanceModel.findByTimetableAndDate(timetable_id, today);
             if (existingAttendance) {
                 return res.status(400).json({
@@ -72,7 +64,6 @@ class AttendanceController {
                 });
             }
 
-            // 7. USE THE MODEL (Clean MVC Approach)
             const attendanceData = {
                 timetable_id: timetable_id,
                 date: today,
@@ -88,7 +79,6 @@ class AttendanceController {
             const attendanceId = await attendanceModel.markAttendance(attendanceData);
             console.log(`✅ Attendance inserted (id: ${attendanceId}) for timetable: ${timetable_id}`);
 
-            // 8. Success Response
             res.status(201).json({
                 message: "Attendance marked successfully",
                 id: attendanceId,
@@ -101,7 +91,6 @@ class AttendanceController {
         }
     }
 
-    // 2. POST /api/attendance/sync-offline
     async syncOfflineAttendance(req, res) {
         try {
             const { records } = req.body;
@@ -159,7 +148,6 @@ class AttendanceController {
         }
     }
 
-    // 3. GET /api/attendance/today
     async getTodayAttendance(req, res) {
         try {
             const date = req.query.date || new Date().toISOString().split("T")[0];

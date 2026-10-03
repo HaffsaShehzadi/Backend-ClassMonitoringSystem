@@ -30,7 +30,6 @@ class AuthController {
                 return res.status(400).json({ message: "Invalid department selected. Please choose from the list." });
             }
 
-            // ✅ Save user to DB (unverified status)
             if (!existing) {
                 await authModel.createUser({
                     name,
@@ -49,10 +48,8 @@ class AuthController {
                 });
             }
 
-            // ✅ 4-Digit OTP Generate & Save
             const otp = await authModel.createOTP(email);
 
-            // ✅ REAL EMAIL SEND (OTP terminal pe print nahi hoga)
             try {
                 await emailService.sendOTPEmail(email, otp);
             } catch (mailError) {
@@ -105,10 +102,9 @@ class AuthController {
             if (!user) {
                 return res.status(404).json({ message: "User not found" });
             }
-            // ✅ New 4-Digit OTP Generate
+        
             const otp = await authModel.createOTP(email);
 
-            // ✅ REAL EMAIL SEND (OTP terminal pe print nahi hoga)
             try {
                 await emailService.sendOTPEmail(email, otp);
             } catch (mailError) {
@@ -149,7 +145,6 @@ class AuthController {
             }
             console.log('User found:', user.email, 'Status:', user.status);
 
-            // 1. Email verification check (Must be verified with real OTP)
             if (!user.email_verified) {
                 console.log('Email not verified yet');
                 return res.status(403).json({
@@ -158,8 +153,6 @@ class AuthController {
             }
             console.log('Email is verified');
 
-            // 2. Status checks (Real verified user)
-            // A) Agar REJECTED hai -> direct RequestStatusScreen (no dashboard, no token)
             if (user.status === "rejected") {
                 console.log('Account was rejected -> redirect to request status');
                 return res.status(200).json({
@@ -175,7 +168,6 @@ class AuthController {
                 });
             }
 
-            // B) Agar PENDING hai -> direct RequestStatusScreen (no dashboard, no token)
             if (user.status === "pending") {
                 console.log('Account is pending approval -> redirect to request status');
                 return res.status(200).json({
@@ -191,7 +183,6 @@ class AuthController {
                 });
             }
 
-            // 3. Agar APPROVED hai -> Password verification (Dashboard access ke liye password zaroori hai)
             console.log('Verifying password for approved user...');
             const isMatch = await bcrypt.compare(password, user.password);      
             if (!isMatch) {
@@ -261,7 +252,7 @@ class AuthController {
             console.log('Email is verified');
             console.log('Generating 4-digit OTP for password reset...');
             const otp = Math.floor(1000 + Math.random() * 9000).toString();
-            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
             await authModel.createResetToken(email, otp, expiresAt);
             
             console.log('Sending reset OTP email...');
@@ -326,7 +317,6 @@ class AuthController {
         }
     }
 
-    // ✅ Real-time status check for RequestStatusScreen
     async checkStatus(req, res) {
         try {
             const email = req.query.email || req.body.email;

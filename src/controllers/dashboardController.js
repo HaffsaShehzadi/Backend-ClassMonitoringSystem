@@ -11,7 +11,6 @@ class DashboardController {
         }
     }
 
-    // GET /api/dashboard/pending-users
     async getPendingUsers(req, res) {
         try {
             const rows = await dashboardModel.getPendingUsers();
@@ -22,7 +21,6 @@ class DashboardController {
         }
     }
 
-    // PUT /api/dashboard/approve/:id
     async approveUser(req, res) {
         try {
             await dashboardModel.approveUser(req.params.id);
@@ -33,7 +31,6 @@ class DashboardController {
         }
     }
 
-    // PUT /api/dashboard/reject/:id
     async rejectUser(req, res) {
         try {
             await dashboardModel.rejectUser(req.params.id);
@@ -44,7 +41,6 @@ class DashboardController {
         }
     }
 
-    // GET /api/dashboard/rejected-users
     async getRejectedUsers(req, res) {
         try {
             const rows = await dashboardModel.getRejectedUsers();
@@ -55,7 +51,6 @@ class DashboardController {
         }
     }
 
-    // DELETE /api/dashboard/rejected/:id
     async deleteRejectedUser(req, res) {
         try {
             await dashboardModel.deleteRejectedUser(req.params.id);

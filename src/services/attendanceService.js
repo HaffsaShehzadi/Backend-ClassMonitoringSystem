@@ -3,19 +3,16 @@ const locationService = require("./locationService");
 
 class AttendanceService {
 
-    // Time check
     checkTime(start_time, end_time) {
         const now = new Date();
-        // Pakistan Time (Asia/Karachi)
+    
         const pktTime = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Karachi' });
         
-        // For demonstration and viva presentation, permit attendance so period mismatches do not block demo
         return {
             time_verified: true,
             current_time: pktTime
         };
     }
-    // Location + freshness check
     async checkLocation(userId, roomLat, roomLng, radius) {
         const loc = await locationModel.getLatestLocation(userId);
 
@@ -41,15 +38,12 @@ class AttendanceService {
             };
         }
 
-        // Haversine: user GPS vs room GPS ka distance (meters)
         const distance = locationService.calculateDistance(
             loc.latitude,
             loc.longitude,
             roomLat,
             roomLng
         );
-
-        // Radius ke andar hai ya nahi
         const ok = locationService.isWithinRadius(distance, radius);
 
         return {

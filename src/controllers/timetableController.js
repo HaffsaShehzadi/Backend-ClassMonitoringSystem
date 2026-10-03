@@ -1,13 +1,11 @@
 const timetableModel = require("../models/timetableModel");
 const db = require("../../Database");
 
-// HELPER FUNCTION: 12-hour (AM/PM) ko MySQL ke 24-hour (HH:MM:SS) format mein badalne ke liye
 const parseTimeTo24Hour = (timeStr) => {
     if (!timeStr) return '00:00:00';
     
     const cleanTime = String(timeStr).trim().toUpperCase();
     
-    // Check if it has AM/PM
     if (cleanTime.includes('AM') || cleanTime.includes('PM')) {
         const isPM = cleanTime.includes('PM');
         const timePart = cleanTime.replace('AM', '').replace('PM', '').trim();
@@ -18,7 +16,6 @@ const parseTimeTo24Hour = (timeStr) => {
         
         if (isNaN(hours)) return '00:00:00';
         
-        // Convert to 24-hour
         if (isPM && hours < 12) {
             hours += 12;
         }
@@ -28,8 +25,7 @@ const parseTimeTo24Hour = (timeStr) => {
         
         return `${String(hours).padStart(2, '0')}:${minutes}:00`;
     }
-    
-    // If already 24-hour format (e.g., "13:00" or "13:00:00")
+
     const parts = cleanTime.split(':');
     if (parts.length >= 2) {
         const h = parts[0].padStart(2, '0');
@@ -77,12 +73,10 @@ class TimetableController {
                 targetSessionId = activeSessions.length > 0 ? activeSessions[0].id : 1;
             }
 
-            // 1. Teacher ID dhundna
             const [teacherRows] = await db.promise().query("SELECT id FROM users WHERE name = ? AND role = 'teacher'", [teacher_name]);
             if (teacherRows.length === 0) return res.status(400).json({ message: "Teacher not found." });
             const teacher_id = teacherRows[0].id;
 
-            // 2. Room ID dhundna (Trim kar ke check karein taake space ka masla na ho)
             const cleanRoomNo = room_no.trim();
             const [roomRows] = await db.promise().query("SELECT id FROM rooms WHERE room_no = ?", [cleanRoomNo]);
             if (roomRows.length === 0) {
@@ -93,12 +87,10 @@ class TimetableController {
             }
             const room_id = roomRows[0].id;
 
-            // 3. Department ID dhundna
             const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
             if (deptRows.length === 0) return res.status(400).json({ message: "Department not found." });
             const department_id = deptRows[0].id;
 
-            // 4. Period ID dhundna (Shift aur Day ke sath)
             const periodDay = day === 'Friday' ? 'Friday' : 'Regular';
             const [periodRows] = await db.promise().query(
                 "SELECT id FROM periods WHERE period_number = ? AND shift = ? AND day = ?", 
@@ -107,7 +99,6 @@ class TimetableController {
             if (periodRows.length === 0) return res.status(400).json({ message: `Period not found for shift: ${shift} and day: ${periodDay}.` });
             const period_id = periodRows[0].id;
 
-            // ✅ 5. TEACHER CONFLICT CHECK (In target session)
             const [teacherConflict] = await db.promise().query(
                 `SELECT t.id, u.name AS teacher_name, t.semester, d.dept_name 
                  FROM timetable t
@@ -124,7 +115,6 @@ class TimetableController {
                 });
             }
 
-            // ✅ 6. ROOM CONFLICT CHECK (In target session)
             const [roomConflict] = await db.promise().query(
                 `SELECT t.id, r.room_no 
                  FROM timetable t
@@ -140,7 +130,6 @@ class TimetableController {
                 });
             }
 
-            // ✅ 7. Insert Record with session_id
             const id = await timetableModel.create({ 
                 session_id: targetSessionId,
                 department_id, 
@@ -153,7 +142,6 @@ class TimetableController {
             });
             res.status(201).json({ message: "Class added to timetable", id });
         } catch (error) {
-            // Yeh exact error batayega ke database mein kya masla hai
             console.error("========================================");
             console.error("❌❌ CREATE CRASH DETAILS ❌❌");
             console.error("Error Message:", error.message);
@@ -167,7 +155,6 @@ class TimetableController {
 
     async update(req, res) {
         try {
-            // Request body se fields extract karein
             const { teacher_name, room_no, department_name, subject_code, semester, day, period_number, shift } = req.body;
             const timetableId = req.params.id;
 
@@ -180,7 +167,6 @@ class TimetableController {
             const [deptRows] = await db.promise().query("SELECT id FROM departments WHERE dept_name = ?", [department_name]);
             const department_id = deptRows.length > 0 ? deptRows[0].id : null;
 
-            // Day type: Friday ya Regular
             const periodDay = day === 'Friday' ? 'Friday' : 'Regular';
 
             const [periodRows] = await db.promise().query(
@@ -232,7 +218,6 @@ class TimetableController {
         }
     }
 
-    // Timetable configuration (departments, semesters, periods)
     async getConfig(req, res) {
         try {
             const [depts] = await db.promise().query("SELECT DISTINCT dept_name as name FROM departments ORDER BY dept_name");
@@ -257,12 +242,10 @@ class TimetableController {
                     
                     const timeString = String(timeStr).trim().toUpperCase();
                     
-                    // ✅ AGAR PEHLE SE AM/PM HAI, TOH WAISAY HI RETURN KAR DO (Double AM/PM roknay ke liye)
                     if (timeString.includes(' AM') || timeString.includes(' PM')) {
                         return timeString;
                     }
                     
-                    // ✅ AGAR 24-HOUR HAI (e.g., 13:00:00), TOH 12-HOUR BANAO
                     const clean24 = timeString.substring(0, 5);
                     const [h, m] = clean24.split(':').map(Number);
                     
@@ -332,7 +315,6 @@ class TimetableController {
         }
     }
 
-    // Period add karna
     async addPeriod(req, res) {
         try {
             const { id, start_time, end_time, shift, day = 'Regular' } = req.body;
@@ -356,7 +338,6 @@ class TimetableController {
         }
     }
 
-    // Period update karna
     async updatePeriod(req, res) {
         try {
             const { id, start_time, end_time, shift, day = 'Regular' } = req.body;

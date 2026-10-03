@@ -3,7 +3,6 @@ const monitoringDutyModel = require("../models/monitoringdutyModel");
 class MonitoringDutyController {
 
     // POST /api/monitoring-duty/assign
-        // POST /api/monitoring-duty/assign
     async assign(req, res) {
         try {
             console.log("📥 ASSIGN DUTY REQUEST:", req.body);
@@ -70,7 +69,6 @@ class MonitoringDutyController {
         try {
             const { date, shift } = req.query;
             
-            // ✅ FIX: 'user_id' ya 'id' dono check karein kyunke token payload mein 'id' hota hai
             const officialId = req.user.user_id || req.user.id;
             
             console.log("🔍 getMyDuty called with officialId:", officialId, "| Date:", date, "| Shift:", shift);
@@ -80,8 +78,7 @@ class MonitoringDutyController {
             console.log("📊 Raw rows from DB for officialId", officialId, ":", rows.length);
             
             let filteredRows = rows;
-            
-            // ✅ Date ke hisaab se filter karein
+        
             if (date) {
                 filteredRows = filteredRows.filter(row => {
                     const dDate = row.duty_date ? String(row.duty_date).split('T')[0] : '';
@@ -89,7 +86,6 @@ class MonitoringDutyController {
                 });
             }
             
-            // ✅ Shift ke hisaab se filter karein
             if (shift) {
                 filteredRows = filteredRows.filter(row => row.shift === shift || row.shift === 'Both');
             }

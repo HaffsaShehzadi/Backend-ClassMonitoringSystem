@@ -1,7 +1,7 @@
 const db = require("../../Database");
 
 class AttendanceModel {
-    // 1. Mark Attendance (Live / Online)
+    
     async markAttendance(data) {
         const sql = `
             INSERT INTO attendance
@@ -24,21 +24,18 @@ class AttendanceModel {
         return result.insertId;
     }
 
-    // 2. Check if attendance already marked for this class on a specific date (Prevent duplicates)
     async findByTimetableAndDate(timetableId, date) {
         const sql = `SELECT id FROM attendance WHERE timetable_id = ? AND date = ?`;
         const [rows] = await db.promise().query(sql, [timetableId, date]);
         return rows[0] || null;
     }
 
-    // 3. Get Attendance by ID
     async getById(id) {
         const sql = `SELECT * FROM attendance WHERE id = ?`;
         const [rows] = await db.promise().query(sql, [id]);
         return rows[0] || null;
     }
 
-    // 4. Get Today's Attendance (All classes marked today)
     async getByDate(date) {
         const sql = `
             SELECT a.*, 
@@ -58,7 +55,6 @@ class AttendanceModel {
         return rows;
     }
 
-    // 5. Teacher ki apni attendance history (Comprehensive JOINs with all aliases)
     async getByTeacher(teacherId, filters = {}) {
         let sql = `
             SELECT a.*, 
@@ -113,7 +109,6 @@ class AttendanceModel {
         return rows;
     }
 
-    // 6. MO ki attendance history (Date aur Department ke hisaab se)
     async getMOHistory(moId, date, departmentId = null) {
         let sql = `
             SELECT a.*,
@@ -155,7 +150,6 @@ class AttendanceModel {
         return rows;
     }
 
-    // 7. Upsert Offline Attendance (Sync process)
     async upsertOfflineAttendance(record, moId) {
         const existing = await this.findByTimetableAndDate(record.timetable_id, record.date);
         let attendanceId;
@@ -208,7 +202,6 @@ class AttendanceModel {
         };
     }
 
-    // 8. Update Attendance status & substitute
     async update(id, data) {
         const sql = `
             UPDATE attendance 

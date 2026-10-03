@@ -1,13 +1,8 @@
 const reportModel = require("../models/reportModel");
 const PDFDocument = require("pdfkit");
 
-// ==========================================
-// Helper: Shared PDF Generator for All Attendance Reports
-// (Department Report, Admin Teacher Report, Teacher Own Report)
-// Same neat 7-column layout, blue header & vertical/horizontal grid
-// ==========================================
 function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows, fileName }) {
-    // Deduplicate rows to prevent any duplicate rows in PDF reports
+
     const uniqueRows = [];
     const seen = new Set();
     for (const r of (rows || [])) {
@@ -37,10 +32,9 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
     const rowHeight = 20;
 
     const drawHeader = (topY) => {
-        // Blue header background
+        
         doc.fillColor('#1A237E').rect(tableLeft, topY, totalWidth, headerHeight).fill();
 
-        // Header text (White, Bold)
         doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8);
         let currentX = tableLeft;
         headers.forEach((header, i) => {
@@ -48,17 +42,14 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
             currentX += colWidths[i];
         });
 
-        // Outer border around header
         doc.strokeColor('#1A237E').lineWidth(1)
            .moveTo(tableLeft, topY).lineTo(tableLeft + totalWidth, topY).stroke()
            .moveTo(tableLeft, topY + headerHeight).lineTo(tableLeft + totalWidth, topY + headerHeight).stroke();
     };
 
-    // === TITLE (Left-aligned, Navy Blue, Bold - As in Screenshot) ===
     doc.fillColor('#1A237E').font('Helvetica-Bold').fontSize(14).text(title, tableLeft, 40);
     doc.moveDown(0.4);
 
-    // === SUBTITLE INFO ===
     doc.fillColor('#222222').font('Helvetica-Bold').fontSize(10).text(subTitle, tableLeft);
     doc.fillColor('#444444').font('Helvetica').fontSize(9).text(`Date Range: ${startDate} to ${endDate}`, tableLeft);
     doc.text(`Total Records: ${rows.length}`, tableLeft);
@@ -77,9 +68,9 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
         doc.font('Helvetica').fontSize(7.5);
 
         rows.forEach((row) => {
-            // Check for page overflow
+
             if (rowY + rowHeight > 760) {
-                // Close bottom border of current page
+    
                 doc.strokeColor('#1A237E').lineWidth(1)
                    .moveTo(tableLeft, rowY).lineTo(tableLeft + totalWidth, rowY).stroke();
 
@@ -90,7 +81,6 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
                 doc.font('Helvetica').fontSize(7.5);
             }
 
-            // Format Date safely
             let dateStr = '-';
             if (row.date) {
                 if (typeof row.date === 'string') {
@@ -112,7 +102,6 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
 
             const rowData = [dateStr, className, periodStr, teacherStr, codeStr, statusStr, subStr];
 
-            // Draw Text
             doc.fillColor('#222222');
             let cellX = tableLeft;
             rowData.forEach((val, i) => {
@@ -120,13 +109,11 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
                 cellX += colWidths[i];
             });
 
-            // Horizontal bottom line of row
             doc.strokeColor('#cccccc').lineWidth(0.5)
                .moveTo(tableLeft, rowY + rowHeight)
                .lineTo(tableLeft + totalWidth, rowY + rowHeight)
                .stroke();
 
-            // Vertical column grid lines
             let lineX = tableLeft;
             for (let i = 0; i <= colWidths.length; i++) {
                 doc.strokeColor('#cccccc').lineWidth(0.5)
@@ -142,7 +129,6 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
         });
     }
 
-    // Final outer table bottom border
     doc.strokeColor('#1A237E').lineWidth(1)
        .moveTo(tableLeft, rowY).lineTo(tableLeft + totalWidth, rowY).stroke();
 
@@ -151,7 +137,6 @@ function generateAttendancePDF(res, { title, subTitle, startDate, endDate, rows,
 
 class ReportController {
 
-    // GET /api/reports/department/:department_id
     async getDepartmentAttendance(req, res) {
         try {
             const departmentId = req.params.department_id;
@@ -173,13 +158,11 @@ class ReportController {
         }
     }
 
-        // GET /api/reports/teacher/:teacher_id
     async getTeacherAttendance(req, res) {
         try {
             const requestedTeacherId = req.params.teacher_id;
             const { startDate, endDate } = req.query; 
             
-            // ✅ SECURITY CHECK: Agar user teacher hai, toh wo sirf apna hi ID dekh sakta hai
             if (req.user.role === 'teacher' && req.user.user_id != requestedTeacherId) {
                 return res.status(403).json({ message: "Forbidden: You can only view your own attendance history." });
             }
@@ -190,7 +173,6 @@ class ReportController {
 
             const rows = await reportModel.getTeacherAttendance(requestedTeacherId, startDate, endDate);
             
-            // Deduplication (Safety net)
             const uniqueMap = new Map();
             (rows || []).forEach(r => {
                 const key = `${r.date}_${r.dept}_${r.sem}_${r.period}_${r.teacher}_${r.code}`;
@@ -203,10 +185,9 @@ class ReportController {
         }
     }
 
-    // GET /api/reports/teacher/my-history
     async getMyTeacherAttendance(req, res) {
         try {
-            // ✅ FIX 1: Token mein 'id' ki jagah 'user_id' ho sakta hai, isliye fallback lagaya
+       
             const teacherId = req.user.user_id || req.user.id; 
             const { startDate, endDate } = req.query;
 
@@ -226,7 +207,6 @@ class ReportController {
         }
     }
 
-    // GET /api/reports/mo-history
     async getMOHistory(req, res) {
         try {
             const moId = req.user.user_id || req.user.id; 
@@ -245,7 +225,6 @@ class ReportController {
         }
     }
 
-    // GET /api/reports/department/:department_id/pdf
     async downloadDepartmentAttendancePDF(req, res) {
         try {
             const departmentId = req.params.department_id;
@@ -276,7 +255,6 @@ class ReportController {
         }
     }
 
-    // GET /api/reports/teacher/:teacher_id/pdf (Admin: Teacher-wise PDF)
     async downloadTeacherAttendancePDF(req, res) {
         try {
             const teacherId = req.params.teacher_id;
@@ -310,7 +288,6 @@ class ReportController {
         }
     }
 
-    // GET /api/reports/teacher/my-history/pdf (Teacher: Own PDF)
     async downloadMyTeacherAttendancePDF(req, res) {
         try {
             const teacherId = req.user.user_id || req.user.id;

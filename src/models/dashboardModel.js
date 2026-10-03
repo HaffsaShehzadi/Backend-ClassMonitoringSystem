@@ -2,7 +2,7 @@ const db = require("../../Database");
 
 class DashboardModel {
     async getAdminDashboard() {
-        // Ek hi query mein 6 alag alag counts nikalna (Subqueries)
+       
         const sql = `
             SELECT
                 (SELECT COUNT(*) FROM users WHERE role = 'teacher' AND status = 'approved') AS total_teachers,
@@ -13,10 +13,9 @@ class DashboardModel {
                 (SELECT COUNT(*) FROM complaints WHERE status = 'pending') AS pending_complaints
         `;    
         const [rows] = await db.promise().query(sql);
-        return rows[0]; // Pehli aur akeli row return karein jisme saare counts hain
+        return rows[0]; 
     }
 
-    // Pending teachers ki LIST (approval screen ke liye)
     async getPendingUsers() {
         const sql = `
             SELECT u.*, d.dept_name AS department
@@ -29,19 +28,16 @@ class DashboardModel {
         return rows;
     }
 
-    // Admin teacher ko APPROVE karta hai
     async approveUser(userId) {
         const sql = `UPDATE users SET status = 'approved' WHERE id = ?`;
         await db.promise().query(sql, [userId]);
     }
 
-    // Admin teacher ko REJECT karta hai
     async rejectUser(userId) {
         const sql = `UPDATE users SET status = 'rejected' WHERE id = ?`;
         await db.promise().query(sql, [userId]);
     }
 
-    // Rejected users ki LIST
     async getRejectedUsers() {
         const sql = `
             SELECT u.*, d.dept_name AS department
@@ -53,8 +49,6 @@ class DashboardModel {
         const [rows] = await db.promise().query(sql);
         return rows;
     }
-
-    // Admin rejected user ko permanently DELETE karta hai
     async deleteRejectedUser(userId) {
         const userModel = require("./userModel");
         await userModel.deleteUser(userId);

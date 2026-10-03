@@ -4,7 +4,7 @@ class MonitoringDutyModel {
     async assign(data) {
         console.log("🔍 RAW DATA RECEIVED IN MODEL:", data);  
         const { official_id, department_id, department_ids, shift, duty_date, assigned_by } = data;  
-        // Frontend se aane wali value ko hamesha Array of Numbers mein convert kara
+        
         const rawDepts = department_ids || department_id;
         let deptIds = [];
         
@@ -16,7 +16,7 @@ class MonitoringDutyModel {
             deptIds = [Number(rawDepts)];
         }
         console.log("✅ PARSED DEPARTMENT IDS:", deptIds);
-        // ✅ SAFETY CHECK: Pehle verify karein ke yeh departments database mein exist karte hain
+    
         const placeholders = deptIds.map(() => '?').join(',');
         const [existingDepts] = await db.promise().query(
             `SELECT id FROM departments WHERE id IN (${placeholders})`, 
@@ -24,11 +24,11 @@ class MonitoringDutyModel {
         );   
         const existingDeptIds = existingDepts.map(d => d.id);
         const missingDepts = deptIds.filter(id => !existingDeptIds.includes(id));
-        // Agar koi department missing hai, toh clear error throw karein
+       
         if (missingDepts.length > 0) {
             throw new Error(`Departments with IDs [${missingDepts.join(', ')}] do not exist in the database! Please check your departments table.`);
         }
-        // ✅ Agar sab theek hain, toh Bulk Insert karein
+       
         const insertPlaceholders = deptIds.map(() => '(?, ?, ?, ?, ?)').join(', ');
         const sql = `
             INSERT INTO duty_assignments 

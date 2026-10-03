@@ -36,7 +36,7 @@ class UserModel {
         return rows;
     }
     async updateUserStatus(userId, status) {
-        // Status sirf 'approved' ya 'rejected' hona chahiye
+
         const validStatuses = ['approved', 'rejected'];
         if (!validStatuses.includes(status)) {
             throw new Error("Invalid status provided");
@@ -45,47 +45,35 @@ class UserModel {
         await db.promise().query(sql, [status, userId]);
     }
 
-    //FK References ko pehle clean up karein - SAFE DELETE
     async deleteUser(userId) {
-        // Pehle check karein k user exist karta hai
+      
         const [users] = await db.promise().query('SELECT email FROM users WHERE id = ?', [userId]);
         if (users.length === 0) {
             throw new Error("User not found");
         }
         const email = users[0].email;
         try {
-            // Transaction shuru karein (All or Nothing principle)
             await db.promise().query('START TRANSACTION');
 
-            // Step 1: OTPs aur Reset Tokens delete karein
             await db.promise().query('DELETE FROM user_otps WHERE email = ?', [email]);
             await db.promise().query('DELETE FROM password_resets WHERE email = ?', [email]);
 
-            // Step 2: Live locations delete karein
             await db.promise().query('DELETE FROM live_locations WHERE user_id = ?', [userId]);
 
-            // Step 3: Complaints delete karein
             await db.promise().query('DELETE FROM complaints WHERE teacher_id = ?', [userId]);
 
-            // Step 4: Duty assignments delete karein (Official aur Assigned By dono)
             await db.promise().query('DELETE FROM duty_assignments WHERE official_id = ? OR assigned_by = ?', [userId, userId]);
 
-            // Step 5: Attendance records delete karein jo is user ne mark kiye
             await db.promise().query('DELETE FROM attendance WHERE marked_by = ?', [userId]);
 
-            // Step 6: Attendance records delete karein jo is teacher ki classes ke hain
             await db.promise().query('DELETE FROM attendance WHERE timetable_id IN (SELECT id FROM timetable WHERE teacher_id = ?)', [userId]);
 
-            // Step 7: Timetable entries delete karein
             await db.promise().query('DELETE FROM timetable WHERE teacher_id = ?', [userId]);
 
-            // Step 8: Finally, user ko delete karein
             await db.promise().query('DELETE FROM users WHERE id = ?', [userId]);
 
-            // Sab successful hai, changes save karein
             await db.promise().query('COMMIT');
-        } catch (error) {
-            // Agar koi error aya, toh sab kuch wapis undo (rollback) kar do
+        } catch (error) { 
             await db.promise().query('ROLLBACK');
             throw error;
         }

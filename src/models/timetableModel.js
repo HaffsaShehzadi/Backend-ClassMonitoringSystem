@@ -1,6 +1,5 @@
 const db = require("../../Database");
 
-// Timetable Model - timetable table handle karta hai
 class TimetableModel {
 
     async getById(id) {
