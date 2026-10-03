@@ -22,7 +22,6 @@ class EmailService {
                 subject: subject,
                 html: html,
             };
-
             const info = await this.transporter.sendMail(mailOptions);
             console.log(`✅ Real email sent successfully to: ${to}`);
             return { success: true, messageId: info.messageId };

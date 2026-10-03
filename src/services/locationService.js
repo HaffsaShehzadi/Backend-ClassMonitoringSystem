@@ -2,7 +2,7 @@
 class LocationService {
     // Coordinates valid hain ya nahi check karna
     validateCoordinates(latitude, longitude) {
-        // Dono values honi chahiye
+        // Dono values must
         if (latitude === undefined || longitude === undefined) {
             return {
                 success: false,

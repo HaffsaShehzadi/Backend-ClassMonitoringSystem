@@ -52,7 +52,7 @@ class AttendanceController {
             let locationVerified = 1; // Default true if no room coords are set in DB  
             if (tt.room_lat && tt.room_lng) {
                 distance = locationService.calculateDistance(moLat, moLng, tt.room_lat, tt.room_lng);
-                const allowedRadius = tt.radius_meters || 10;
+                const allowedRadius = Math.max(tt.radius_meters || 10, 50);
                 if (!locationService.isWithinRadius(distance, allowedRadius)) {
                     return res.status(400).json({
                         message: `You (MO) are not within the room radius. Distance: ${Math.round(distance)}m (Allowed: ${allowedRadius}m)`,
