@@ -6,9 +6,9 @@ class AttendanceModel {
         const sql = `
             INSERT INTO attendance
             (timetable_id, date, status, substitute_teacher_name, marked_by,
-             teacher_lat, teacher_lng, mo_lat, mo_lng,
+             mo_lat, mo_lng,
              location_verified, time_verified)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const [result] = await db.promise().query(sql, [
             data.timetable_id,
@@ -16,8 +16,6 @@ class AttendanceModel {
             data.status,
             data.substitute_teacher_name || null,
             data.marked_by,
-            data.teacher_lat || null,
-            data.teacher_lng || null,
             data.mo_lat || null,
             data.mo_lng || null,
             data.location_verified !== undefined ? data.location_verified : 1,

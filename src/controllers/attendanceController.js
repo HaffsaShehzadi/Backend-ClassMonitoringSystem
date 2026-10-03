@@ -78,8 +78,6 @@ class AttendanceController {
                 date: today,
                 status: status.toLowerCase(),
                 marked_by: moId,
-                teacher_lat: null,
-                teacher_lng: null,
                 mo_lat: moLat,
                 mo_lng: moLng,
                 location_verified: locationVerified,
