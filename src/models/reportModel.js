@@ -1,3 +1,5 @@
+const db = require("../../Database");
+
 class ReportModel {
 
     // 1. Get attendance by department (with date range)
@@ -74,3 +76,5 @@ class ReportModel {
         return rows;
     }
 }
+
+module.exports = new ReportModel();
